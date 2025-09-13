@@ -1,0 +1,85 @@
+﻿<Window x:Class="AplicacionDespacho.AdminWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Administrar Datos de Viajes" Height="500" Width="450"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <GroupBox Header="Agregar Empresa de Transporte" Grid.Row="0" Margin="0,0,0,10">
+            <StackPanel Margin="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Label Content="Nombre de la Empresa:" Grid.Row="0" Grid.Column="0" Margin="0,0,10,0"/>
+                    <TextBox x:Name="textBoxEmpresa" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5"/>
+
+                    <Label Content="RUC:" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"/>
+                    <TextBox x:Name="textBoxRUC" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5"/>
+                </Grid>
+                <Button x:Name="btnGuardarEmpresa" Content="Guardar Empresa" HorizontalAlignment="Right" Margin="0,10,0,0" Click="btnGuardarEmpresa_Click"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Agregar Conductor" Grid.Row="1" Margin="0,0,0,10">
+            <StackPanel Margin="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Label Content="Seleccionar Empresa:" Grid.Row="0" Grid.Column="0" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="comboBoxEmpresasConductor" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5"/>
+
+                    <Label Content="Nombre del Conductor:" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"/>
+                    <TextBox x:Name="textBoxConductor" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5"/>
+                </Grid>
+                <Button x:Name="btnGuardarConductor" Content="Guardar Conductor" HorizontalAlignment="Right" Margin="0,10,0,0" Click="btnGuardarConductor_Click"/>
+            </StackPanel>
+        </GroupBox>
+
+        <GroupBox Header="Agregar Vehículo" Grid.Row="2" Margin="0,0,0,10">
+            <StackPanel Margin="10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Label Content="Seleccionar Empresa:" Grid.Row="0" Grid.Column="0" Margin="0,0,10,0"/>
+                    <ComboBox x:Name="comboBoxEmpresasVehiculo" Grid.Row="0" Grid.Column="1" Margin="0,0,0,5"/>
+
+                    <Label Content="Placa del Vehículo:" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"/>
+                    <TextBox x:Name="textBoxPlaca" Grid.Row="1" Grid.Column="1" Margin="0,0,0,5"/>
+                </Grid>
+                <Button x:Name="btnGuardarVehiculo" Content="Guardar Vehículo" HorizontalAlignment="Right" Margin="0,10,0,0" Click="btnGuardarVehiculo_Click"/>
+            </StackPanel>
+        </GroupBox>
+    </Grid>
+</Window>
