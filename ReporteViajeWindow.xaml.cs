@@ -43,8 +43,15 @@ namespace AplicacionDespacho
 
             // Calcular totales    
             txtTotalPallets.Text = _pallets.Count.ToString();
-            txtTotalCajas.Text = _pallets.Sum(p => p.NumeroDeCajas).ToString();
+            txtTotalCajas.Text = _pallets.Sum(p => p.CajasParaReporte).ToString();
             txtPesoTotal.Text = _pallets.Sum(p => p.PesoTotal).ToString("F3");
+            // NUEVO: Contadores simples PC/PH para la ventana  
+            var totalPC = _pallets.Count(p => p.EsPC);
+            var totalPH = _pallets.Count(p => p.EsPH);
+
+            // Mostrar en controles de texto (necesitarás agregar estos al XAML)  
+            txtTotalPC.Text = $"{totalPC}";
+            txtTotalPH.Text = $"{totalPH}";
         }
 
         private async void btnExportar_Click(object sender, RoutedEventArgs e)

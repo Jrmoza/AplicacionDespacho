@@ -149,10 +149,10 @@ namespace AplicacionDespacho.Services.Export
             foreach (var pallet in pallets)
             {
                 worksheet.Cells[row, 1].Value = pallet.NumeroPallet;
-                worksheet.Cells[row, 2].Value = pallet.Variedad;
+                worksheet.Cells[row, 2].Value = pallet.VariedadParaReporte;
                 worksheet.Cells[row, 3].Value = pallet.Calibre;
                 worksheet.Cells[row, 4].Value = pallet.Embalaje;
-                worksheet.Cells[row, 5].Value = pallet.NumeroDeCajas;
+                worksheet.Cells[row, 5].Value = pallet.TotalCajasDisplay;
                 worksheet.Cells[row, 6].Value = pallet.PesoUnitario;
                 worksheet.Cells[row, 7].Value = pallet.PesoTotal;
                 worksheet.Cells[row, 8].Value = pallet.Modificado ? "Sí" : "No";
@@ -180,13 +180,35 @@ namespace AplicacionDespacho.Services.Export
             row++;
 
             worksheet.Cells[row, 1].Value = "Total Cajas:";
-            worksheet.Cells[row, 2].Value = pallets.Sum(p => p.NumeroDeCajas);
+            worksheet.Cells[row, 2].Value = pallets.Sum(p => p.CajasParaReporte);
             row++;
 
             worksheet.Cells[row, 1].Value = "Peso Total (kg):";
             worksheet.Cells[row, 2].Value = pallets.Sum(p => p.PesoTotal);
             worksheet.Cells[row, 2].Style.Numberformat.Format = "0.000";
+            // NUEVO: Contadores PC/PH  
+            row++;
+            worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
+            worksheet.Cells[row, 1].Style.Font.Bold = true;
+            row++;
 
+            var totalPC = pallets.Count(p => p.EsPC);
+            var totalPH = pallets.Count(p => p.EsPH);
+
+            worksheet.Cells[row, 1].Value = "Pallets PC:";
+            worksheet.Cells[row, 2].Value = totalPC;
+            row++;
+
+            worksheet.Cells[row, 1].Value = "Pallets PH:";
+            worksheet.Cells[row, 2].Value = totalPH;
+            row++;
+
+            // Formatear sección PC/PH  
+            using (var range = worksheet.Cells[row - 3, 1, row - 1, 2])
+            {
+                range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+            }
             return row + 1;
         }
 

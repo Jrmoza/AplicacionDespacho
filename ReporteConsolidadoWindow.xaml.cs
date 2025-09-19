@@ -37,15 +37,15 @@ namespace AplicacionDespacho
 
             // Generar resumen por variedad  
             var resumenVariedad = _pallets
-                .GroupBy(p => p.Variedad)
+                .GroupBy(p => p.VariedadParaReporte)
                 .Select(g => new
                 {
                     Variedad = g.Key,
                     TotalPallets = g.Count(),
-                    TotalCajas = g.Sum(p => p.NumeroDeCajas),
+                    TotalCajas = g.Sum(p => p.CajasParaReporte),
                     TotalKilos = g.Sum(p => p.PesoTotal)
                 })
-                .OrderBy(r => r.Variedad)
+                            .OrderBy(r => r.Variedad)
                 .ToList();
 
             dgResumenVariedad.ItemsSource = resumenVariedad;
@@ -57,7 +57,7 @@ namespace AplicacionDespacho
                 {
                     Empresa = g.Key,
                     TotalPallets = g.Count(),
-                    TotalCajas = g.Sum(p => p.NumeroDeCajas),
+                    TotalCajas = g.Sum(p => p.CajasParaReporte),
                     TotalKilos = g.Sum(p => p.PesoTotal),
                     CantidadViajes = g.Select(p => p.ViajeId).Distinct().Count()
                 })
@@ -68,8 +68,15 @@ namespace AplicacionDespacho
 
             // Calcular totales generales  
             txtTotalPalletsGeneral.Text = _pallets.Count.ToString();
-            txtTotalCajasGeneral.Text = _pallets.Sum(p => p.NumeroDeCajas).ToString();
+            txtTotalCajasGeneral.Text = _pallets.Sum(p => p.CajasParaReporte).ToString();
             txtTotalKilosGeneral.Text = _pallets.Sum(p => p.PesoTotal).ToString("F3");
+            // NUEVO: Contadores simples PC/PH (solo números exactos)  
+            var totalPC = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PC");
+            var totalPH = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PH");
+
+            // Mostrar en controles de texto (necesitarás agregar estos al XAML)  
+             txtTotalPC.Text = $"{totalPC}";  
+             txtTotalPH.Text = $"{totalPH}";
         }
 
         private async void btnExportar_Click(object sender, RoutedEventArgs e)
@@ -138,6 +145,15 @@ namespace AplicacionDespacho
         private void btnCerrar_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+        private string DeterminarTipoPallet(string numeroPallet)
+        {
+            if (numeroPallet.ToUpper().EndsWith("PC") || numeroPallet.ToUpper().Contains("PC"))
+                return "PC";
+            else if (numeroPallet.ToUpper().EndsWith("PH") || numeroPallet.ToUpper().Contains("PH"))
+                return "PH";
+            else
+                return "PC"; // Por defecto PC si no se puede determinar  
         }
     }
 }

@@ -10,10 +10,14 @@ namespace AplicacionDespacho.Models.Reports
         public decimal TotalKilos { get; set; }
         public int TotalPallets { get; set; }
         public List<ResumenVariedadEmbalaje> DetallesPorEmbalaje { get; set; }
+        // AGREGAR ESTAS PROPIEDADES:  
+        public string VariedadParaReporte => Variedad; // Para compatibilidad  
+        public int CajasParaReporte => TotalCajas; // Para compatibilidad  
 
         public ResumenPorVariedad()
         {
             DetallesPorEmbalaje = new List<ResumenVariedadEmbalaje>();
         }
+
     }
 }

@@ -41,6 +41,10 @@ namespace AplicacionDespacho.ViewModels
                 OnPropertyChanged(nameof(EntradaNumeroPallet));
             }
         }
+        public ObservableCollection<string> Embalajes { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<string> Variedades { get; set; } = new ObservableCollection<string>();
+
+
 
         public ObservableCollection<InformacionPallet> PalletsEscaneados { get; } = new ObservableCollection<InformacionPallet>();
 
@@ -82,6 +86,7 @@ namespace AplicacionDespacho.ViewModels
             _accesoDatos = accesoDatos;
             _accesoDatosViajes = new AccesoDatosViajes();
             _logger = LoggingFactory.CreateLogger("ViewModelPrincipal");
+            CargarDatosComboBox();
 
             // NUEVO: Inicializar SignalR y cola de escaneos  
             _signalRService = new SignalRService(AppConfig.SignalRHubUrl);
@@ -127,6 +132,35 @@ namespace AplicacionDespacho.ViewModels
             ComandoContinuarViaje = new ComandoRelevo(ContinuarViaje, parameter => !TieneViajeActivo);
 
 
+        }
+        // Agregar este método para cargar los datos  
+        private void CargarDatosComboBox()
+        {
+            try
+            {
+                // Cargar embalajes  
+                var embalajes = _accesoDatosViajes.ObtenerTodosLosEmbalajes();
+                Embalajes.Clear();
+                foreach (var embalaje in embalajes)
+                {
+                    Embalajes.Add(embalaje);
+                }
+
+                // Cargar variedades  
+                var variedades = _accesoDatosViajes.ObtenerTodasLasVariedades();
+                Variedades.Clear();
+                foreach (var variedad in variedades)
+                {
+                    Variedades.Add(variedad);
+                }
+
+                _logger.LogInfo("Datos de ComboBox cargados: {EmbalajesTotales} embalajes, {VariedadesTotales} variedades",
+                               Embalajes.Count, Variedades.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cargando datos para ComboBox");
+            }
         }
         // NUEVO: Método para manejar números de pallet recibidos desde móvil  
         private void OnPalletNumberReceivedFromMobile(string palletNumber, string deviceId)
@@ -210,23 +244,72 @@ namespace AplicacionDespacho.ViewModels
 
         public void RecalcularPesoPallet(InformacionPallet pallet)
         {
-            _logger.LogDebug("Recalculando peso para pallet: {NumeroPallet}", pallet.NumeroPallet);
-
-            var pesoEmbalaje = _accesoDatosViajes.ObtenerPesoEmbalaje(pallet.Embalaje);
-            if (pesoEmbalaje != null)
+            try
             {
-                pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
-                pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+                _logger.LogDebug("Recalculando peso para pallet: {NumeroPallet}", pallet.NumeroPallet);
 
+                var pesoEmbalaje = _accesoDatosViajes.ObtenerPesoEmbalaje(pallet.Embalaje);
+                if (pesoEmbalaje != null)
+                {
+                    pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
-                _logger.LogInfo("Peso recalculado para pallet {NumeroPallet}: {PesoTotal} kg",
-                              pallet.NumeroPallet, pallet.PesoTotal);
+                    // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC  
+                    bool esPalletCompleto = pallet.NumeroPallet.ToUpper().EndsWith("PC") ||
+                                           pallet.NumeroPallet.ToUpper().Contains("PC");
+
+                    if (esPalletCompleto && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
+                    {
+                        // Para pallets PC, usar el total de ficha técnica  
+                        if (pallet.EsBicolor)
+                        {
+                            // Para PC bicolor, el peso se basa en el total de ambas variedades  
+                            int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
+                            pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
+
+                            _logger.LogInfo("Peso recalculado para pallet PC bicolor {NumeroPallet}: {TotalCajas} cajas = {PesoTotal} kg",
+                                          pallet.NumeroPallet, totalCajas, pallet.PesoTotal);
+                        }
+                        else
+                        {
+                            // Para PC normal, usar ficha técnica  
+                            pallet.PesoTotal = pesoEmbalaje.TotalCajasFichaTecnica.Value * pesoEmbalaje.PesoUnitario;
+
+                            _logger.LogInfo("Peso recalculado para pallet PC {NumeroPallet}: {TotalCajas} cajas = {PesoTotal} kg",
+                                          pallet.NumeroPallet, pesoEmbalaje.TotalCajasFichaTecnica.Value, pallet.PesoTotal);
+                        }
+                    }
+                    else
+                    {
+                        // Para pallets normales (no PC)  
+                        if (pallet.EsBicolor)
+                        {
+                            // Para bicolor, sumar ambas variedades  
+                            int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
+                            pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
+
+                            _logger.LogInfo("Peso recalculado para pallet bicolor {NumeroPallet}: {TotalCajas} cajas = {PesoTotal} kg",
+                                          pallet.NumeroPallet, totalCajas, pallet.PesoTotal);
+                        }
+                        else
+                        {
+                            // Para pallet normal, usar solo primera variedad  
+                            pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+
+                            _logger.LogInfo("Peso recalculado para pallet normal {NumeroPallet}: {NumeroCajas} cajas = {PesoTotal} kg",
+                                          pallet.NumeroPallet, pallet.NumeroDeCajas, pallet.PesoTotal);
+                        }
+                    }
+                }
+                else
+                {
+                    pallet.PesoUnitario = 0;
+                    pallet.PesoTotal = 0;
+                    _logger.LogWarning("No se encontró configuración de peso para embalaje: {Embalaje}", pallet.Embalaje);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                pallet.PesoUnitario = 0;
-                pallet.PesoTotal = 0;
-                _logger.LogWarning("No se encontró configuración de peso para embalaje: {Embalaje}", pallet.Embalaje);
+                _logger.LogError(ex, "Error recalculando peso del pallet: {NumeroPallet}", pallet.NumeroPallet);
             }
         }
 
@@ -312,7 +395,8 @@ namespace AplicacionDespacho.ViewModels
         {
             get
             {
-                return PalletsEscaneados.Sum(p => p.NumeroDeCajas);
+                return PalletsEscaneados.Sum(p => p.EsBicolor ?
+                    (p.NumeroDeCajas + p.CajasSegundaVariedad) : p.NumeroDeCajas);
             }
         }
 
@@ -343,7 +427,7 @@ namespace AplicacionDespacho.ViewModels
                 _logger.LogWarning("Intento de escaneo sin viaje activo");
                 var errorMsg = "Debe crear un viaje antes de escanear pallets.";
 
-                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil  
+                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil      
                 if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                 {
                     await _signalRService.SendPalletErrorToMobileAsync(
@@ -357,13 +441,13 @@ namespace AplicacionDespacho.ViewModels
                 return;
             }
 
-            // VALIDACIÓN: Verificar que el pallet no esté duplicado en el viaje actual            
+            // VALIDACIÓN: Verificar que el pallet no esté duplicado en el viaje actual                
             if (PalletsEscaneados.Any(p => p.NumeroPallet == EntradaNumeroPallet))
             {
                 _logger.LogWarning("Pallet duplicado detectado: {NumeroPallet}", EntradaNumeroPallet);
                 var errorMsg = $"El pallet {EntradaNumeroPallet} ya fue escaneado en este viaje.";
 
-                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil  
+                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil      
                 if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                 {
                     await _signalRService.SendPalletErrorToMobileAsync(
@@ -379,13 +463,13 @@ namespace AplicacionDespacho.ViewModels
                 return;
             }
 
-            // VALIDACIÓN: Verificar que el pallet no haya sido enviado en otro viaje            
+            // VALIDACIÓN: Verificar que el pallet no haya sido enviado en otro viaje                
             if (_accesoDatosViajes.PalletYaFueEnviado(EntradaNumeroPallet))
             {
                 _logger.LogWarning("Pallet ya enviado en otro viaje: {NumeroPallet}", EntradaNumeroPallet);
                 var errorMsg = $"El pallet {EntradaNumeroPallet} ya fue enviado en otro viaje o esta en un viaje activo y no puede ser reutilizado.";
 
-                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil  
+                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil      
                 if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                 {
                     await _signalRService.SendPalletErrorToMobileAsync(
@@ -407,19 +491,45 @@ namespace AplicacionDespacho.ViewModels
             {
                 _logger.LogInfo("Pallet encontrado: {NumeroPallet} - {Variedad}", pallet.NumeroPallet, pallet.Variedad);
 
-                // Guardar datos originales para tracking de modificaciones            
+                // Guardar datos originales para tracking de modificaciones                
                 pallet.VariedadOriginal = pallet.Variedad;
                 pallet.CalibreOriginal = pallet.Calibre;
                 pallet.EmbalajeOriginal = pallet.Embalaje;
                 pallet.NumeroDeCajasOriginal = pallet.NumeroDeCajas;
 
-                // ✅ NUEVA LÓGICA: Verificar si es pallet completo y usar TotalCajasFichaTecnica      
+                // NUEVO: Detectar si es pallet bicolor E50G6CB    
+                if (pallet.Embalaje == "E50G6CB")
+                {
+                    _logger.LogInfo("🎯 Pallet bicolor E50G6CB detectado: {NumeroPallet}", pallet.NumeroPallet);
+
+                    // Marcar como bicolor    
+                    pallet.EsBicolor = true;
+
+                    // Guardar datos originales para campos bicolor    
+                    pallet.SegundaVariedadOriginal = pallet.SegundaVariedad;
+                    pallet.CajasSegundaVariedadOriginal = pallet.CajasSegundaVariedad;
+
+                    // Mostrar mensaje informativo sobre pallet bicolor    
+                   /* var mensaje = $"PALLET BICOLOR DETECTADO\\n\\n" +
+                                 $"Número: {pallet.NumeroPallet}\\n" +
+                                 $"Embalaje: {pallet.Embalaje}\\n" +
+                                 $"Calibre: {pallet.Calibre}\\n\\n" +
+                                 $"Primera Variedad: {pallet.Variedad} ({pallet.NumeroDeCajas} cajas)\\n" +
+                                 $"Segunda Variedad: {(string.IsNullOrEmpty(pallet.SegundaVariedad) ? "Por definir" : pallet.SegundaVariedad)} " +
+                                 $"({pallet.CajasSegundaVariedad} cajas)\\n\\n" +
+                                 $"Los campos adicionales son editables en la sección de información del pallet.";
+
+                    MessageBox.Show(mensaje, "Pallet Bicolor E50G6CB",
+                                   MessageBoxButton.OK, MessageBoxImage.Information);*/
+                }
+
+                // ✅ LÓGICA RESTAURADA: Verificar si es pallet completo y usar TotalCajasFichaTecnica          
                 var pesoEmbalaje = _accesoDatosViajes.ObtenerPesoEmbalaje(pallet.Embalaje);
                 if (pesoEmbalaje != null)
                 {
                     pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
-                    // ✅ LÓGICA DE PALLET COMPLETO: Si el pallet termina en "PC" o contiene "PC"      
+                    // ✅ LÓGICA DE PALLET COMPLETO RESTAURADA: Si el pallet termina en "PC" o contiene "PC"          
                     bool esPalletCompleto = pallet.NumeroPallet.ToUpper().EndsWith("PC") ||
                                            pallet.NumeroPallet.ToUpper().Contains("PC");
 
@@ -428,14 +538,63 @@ namespace AplicacionDespacho.ViewModels
                         _logger.LogInfo("Pallet completo detectado: {NumeroPallet}, usando {TotalCajas} cajas de ficha técnica",
                                       pallet.NumeroPallet, pesoEmbalaje.TotalCajasFichaTecnica.Value);
 
-                        // Usar el valor de ficha técnica para pallets completos      
-                        pallet.NumeroDeCajas = pesoEmbalaje.TotalCajasFichaTecnica.Value;
-                        pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+                        // NUEVO: Para pallets PC + bicolor, distribuir cajas entre variedades  
+                        if (pallet.EsBicolor)
+                        {
+                            // Usar el total de ficha técnica y distribuir automáticamente  
+                            int totalCajasFicha = pesoEmbalaje.TotalCajasFichaTecnica.Value;
+
+                            // Si no hay distribución manual, dividir equitativamente  
+                            if (pallet.CajasSegundaVariedad == 0)
+                            {
+                                pallet.NumeroDeCajas = totalCajasFicha / 2;
+                                pallet.CajasSegundaVariedad = totalCajasFicha - pallet.NumeroDeCajas;
+
+                                _logger.LogInfo("Distribución automática para pallet PC bicolor: {Cajas1} + {Cajas2} = {Total}",
+                                              pallet.NumeroDeCajas, pallet.CajasSegundaVariedad, totalCajasFicha);
+                            }
+                            else
+                            {
+                                // Mantener distribución existente pero ajustar al total de ficha técnica  
+                                int totalActual = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
+                                if (totalActual != totalCajasFicha)
+                                {
+                                    _logger.LogInfo("Ajustando total de cajas PC bicolor de {TotalActual} a {TotalFicha}",
+                                                  totalActual, totalCajasFicha);
+
+                                    // Mantener proporción pero ajustar al total correcto  
+                                    double proporcion = (double)pallet.NumeroDeCajas / totalActual;
+                                    pallet.NumeroDeCajas = (int)(totalCajasFicha * proporcion);
+                                    pallet.CajasSegundaVariedad = totalCajasFicha - pallet.NumeroDeCajas;
+                                }
+                            }
+
+                            pallet.PesoTotal = totalCajasFicha * pesoEmbalaje.PesoUnitario;
+                        }
+                        else
+                        {
+                            // Pallet PC normal - usar valor de ficha técnica  
+                            pallet.NumeroDeCajas = pesoEmbalaje.TotalCajasFichaTecnica.Value;
+                            pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+                        }
                     }
                     else
                     {
-                        // Usar el valor escaneado para pallets normales      
-                        pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+                        // NUEVO: Para pallets bicolor normales (no PC), calcular peso considerando ambas variedades    
+                        if (pallet.EsBicolor)
+                        {
+                            // Calcular peso total considerando ambas variedades    
+                            int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
+                            pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
+
+                            _logger.LogInfo("Peso calculado para pallet bicolor: {TotalCajas} cajas = {PesoTotal} kg",
+                                          totalCajas, pallet.PesoTotal);
+                        }
+                        else
+                        {
+                            // ✅ LÓGICA ORIGINAL RESTAURADA: Usar el valor escaneado para pallets normales          
+                            pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
+                        }
                     }
                 }
                 else
@@ -446,7 +605,7 @@ namespace AplicacionDespacho.ViewModels
 
                     var warningMsg = $"No se encontró peso configurado para el embalaje '{pallet.Embalaje}'.";
 
-                    // NUEVO: Enviar advertencia al dispositivo móvil si está procesando desde móvil  
+                    // NUEVO: Enviar advertencia al dispositivo móvil si está procesando desde móvil      
                     if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                     {
                         await _signalRService.SendPalletErrorToMobileAsync(
@@ -459,27 +618,28 @@ namespace AplicacionDespacho.ViewModels
                     }
                 }
 
-                // Asegurar que FechaModificacion tenga un valor        
+                // Asegurar que FechaModificacion tenga un valor            
                 if (pallet.FechaModificacion == null)
                 {
                     pallet.FechaModificacion = FechaOperacionalHelper.ObtenerFechaOperacionalActual();
                 }
 
-                // ✅ GUARDADO AUTOMÁTICO: Guardar inmediatamente en BD        
+                // ✅ GUARDADO AUTOMÁTICO: Guardar inmediatamente en BD            
                 try
                 {
                     _accesoDatosViajes.GuardarPalletViaje(pallet, ViajeActivo.ViajeId);
                     _logger.LogInfo("Pallet guardado exitosamente en BD: {NumeroPallet}", pallet.NumeroPallet);
 
-                    // Solo agregar a la colección si se guardó exitosamente        
+                    // Solo agregar a la colección si se guardó exitosamente            
                     PalletsEscaneados.Add(pallet);
                     UltimoPalletEscaneado = pallet;
                     EntradaNumeroPallet = string.Empty;
 
-                    // Notificar cambios en propiedades calculadas            
+                    // NUEVO: Notificar cambios considerando pallets bicolor    
                     OnPropertyChanged(nameof(TotalCajas));
                     OnPropertyChanged(nameof(PesoTotalViaje));
-                    // NUEVO: Sincronizar escaneo con APK  
+
+                    // NUEVO: Sincronizar escaneo con APK      
                     _ = Task.Run(async () =>
                     {
                         try
@@ -493,7 +653,7 @@ namespace AplicacionDespacho.ViewModels
                         }
                     });
 
-                    // NUEVO: Enviar resultado exitoso al dispositivo móvil si está procesando desde móvil  
+                    // NUEVO: Enviar resultado exitoso al dispositivo móvil si está procesando desde móvil      
                     if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                     {
                         await _signalRService.SendPalletProcessedToMobileAsync(
@@ -509,7 +669,7 @@ namespace AplicacionDespacho.ViewModels
 
                     var errorMsg = $"Error al guardar pallet en la base de datos: {ex.Message}";
 
-                    // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil  
+                    // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil      
                     if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                     {
                         await _signalRService.SendPalletErrorToMobileAsync(
@@ -527,7 +687,7 @@ namespace AplicacionDespacho.ViewModels
                 _logger.LogWarning("Pallet no encontrado: {NumeroPallet}", EntradaNumeroPallet);
                 var errorMsg = "El número de pallet no se encontró en la base de datos.";
 
-                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil  
+                // NUEVO: Enviar error al dispositivo móvil si está procesando desde móvil      
                 if (!string.IsNullOrEmpty(_currentDeviceProcessing))
                 {
                     await _signalRService.SendPalletErrorToMobileAsync(
@@ -764,9 +924,6 @@ namespace AplicacionDespacho.ViewModels
         // PARTE 5: Métodos de Edición de Pallets    
         private void CargarPalletParaEdicion(InformacionPallet pallet)
         {
-            _logger.LogDebug("Cargando pallet para edición: {NumeroPallet}", pallet.NumeroPallet);
-
-            // Crear una copia para edición sin modificar el original      
             UltimoPalletEscaneado = new InformacionPallet
             {
                 NumeroPallet = pallet.NumeroPallet,
@@ -776,16 +933,27 @@ namespace AplicacionDespacho.ViewModels
                 NumeroDeCajas = pallet.NumeroDeCajas,
                 PesoUnitario = pallet.PesoUnitario,
                 PesoTotal = pallet.PesoTotal,
-                // Preservar valores originales      
+
+                // NUEVO: Campos bicolor  
+                EsBicolor = pallet.EsBicolor,
+                SegundaVariedad = pallet.SegundaVariedad,
+                CajasSegundaVariedad = pallet.CajasSegundaVariedad,
+
+                // Preservar valores originales  
                 VariedadOriginal = pallet.VariedadOriginal ?? pallet.Variedad,
                 CalibreOriginal = pallet.CalibreOriginal ?? pallet.Calibre,
                 EmbalajeOriginal = pallet.EmbalajeOriginal ?? pallet.Embalaje,
                 NumeroDeCajasOriginal = pallet.NumeroDeCajasOriginal != 0 ? pallet.NumeroDeCajasOriginal : pallet.NumeroDeCajas,
+
+                // NUEVO: Valores originales bicolor  
+                SegundaVariedadOriginal = pallet.SegundaVariedadOriginal ?? pallet.SegundaVariedad,
+                CajasSegundaVariedadOriginal = pallet.CajasSegundaVariedadOriginal != 0 ? pallet.CajasSegundaVariedadOriginal : pallet.CajasSegundaVariedad,
+
                 Modificado = pallet.Modificado,
                 FechaModificacion = pallet.FechaModificacion
             };
 
-            _logger.LogInfo("Pallet cargado para edición: {NumeroPallet}", pallet.NumeroPallet);
+            _logger.LogInfo("Pallet cargado para edición: {NumeroPallet} - Bicolor: {EsBicolor}", pallet.NumeroPallet, pallet.EsBicolor);
         }
 
         private void AplicarCambios(object parameter)
@@ -794,18 +962,27 @@ namespace AplicacionDespacho.ViewModels
             {
                 _logger.LogInfo("Aplicando cambios al pallet: {NumeroPallet}", UltimoPalletEscaneado.NumeroPallet);
 
-                // ✅ CORRECTO: Comparar con valores originales para detectar modificaciones          
+                // ✅ CORRECTO: Comparar con valores originales para detectar modificaciones            
                 bool huboModificacion =
                     UltimoPalletEscaneado.Variedad != UltimoPalletEscaneado.VariedadOriginal ||
                     UltimoPalletEscaneado.Calibre != UltimoPalletEscaneado.CalibreOriginal ||
                     UltimoPalletEscaneado.Embalaje != UltimoPalletEscaneado.EmbalajeOriginal ||
                     UltimoPalletEscaneado.NumeroDeCajas != UltimoPalletEscaneado.NumeroDeCajasOriginal;
 
+                // NUEVO: Detectar modificaciones en campos bicolor E50G6CB  
+                if (UltimoPalletEscaneado.EsBicolor)
+                {
+                    huboModificacion = huboModificacion ||
+                        UltimoPalletEscaneado.SegundaVariedad != UltimoPalletEscaneado.SegundaVariedadOriginal ||
+                        UltimoPalletEscaneado.CajasSegundaVariedad != UltimoPalletEscaneado.CajasSegundaVariedadOriginal;
+                }
+
                 _logger.LogDebug("Modificación detectada: {HuboModificacion}", huboModificacion);
 
-                // ✅ CORRECTO: Recalcular peso si cambió embalaje o número de cajas (comparar con originales)          
+                // ✅ CORRECTO: Recalcular peso si cambió embalaje o número de cajas (comparar con originales)            
                 if (UltimoPalletEscaneado.Embalaje != UltimoPalletEscaneado.EmbalajeOriginal ||
-                    UltimoPalletEscaneado.NumeroDeCajas != UltimoPalletEscaneado.NumeroDeCajasOriginal)
+                    UltimoPalletEscaneado.NumeroDeCajas != UltimoPalletEscaneado.NumeroDeCajasOriginal ||
+                    (UltimoPalletEscaneado.EsBicolor && UltimoPalletEscaneado.CajasSegundaVariedad != UltimoPalletEscaneado.CajasSegundaVariedadOriginal))
                 {
                     RecalcularPesoPallet(UltimoPalletEscaneado);
                 }
@@ -813,11 +990,11 @@ namespace AplicacionDespacho.ViewModels
                 var index = PalletsEscaneados.IndexOf(PalletSeleccionado);
                 if (index >= 0)
                 {
-                    // ✅ PRESERVAR: Estado de modificación correctamente          
+                    // ✅ PRESERVAR: Estado de modificación correctamente            
                     UltimoPalletEscaneado.Modificado = huboModificacion;
                     UltimoPalletEscaneado.FechaModificacion = huboModificacion ? DateTime.Now : PalletSeleccionado.FechaModificacion;
 
-                    // ✅ AGREGAR: Actualizar en BD después de modificar        
+                    // ✅ AGREGAR: Actualizar en BD después de modificar          
                     try
                     {
                         _accesoDatosViajes.ActualizarPalletViaje(UltimoPalletEscaneado, ViajeActivo.ViajeId);
@@ -829,7 +1006,7 @@ namespace AplicacionDespacho.ViewModels
                         OnPropertyChanged(nameof(TotalCajas));
                         OnPropertyChanged(nameof(PesoTotalViaje));
 
-                        // Cargar pallets existentes del viaje desde la base      
+                        // Cargar pallets existentes del viaje desde la base        
                         var palletsExistentes = _accesoDatosViajes.ObtenerPalletsDeViaje(ViajeActivo.ViajeId);
 
                         PalletsEscaneados.Clear();
@@ -838,7 +1015,7 @@ namespace AplicacionDespacho.ViewModels
                             PalletsEscaneados.Add(pallet);
                         }
 
-                        // NUEVO: Sincronizar cambios con APK  
+                        // NUEVO: Sincronizar cambios con APK    
                         _ = Task.Run(async () =>
                         {
                             try
@@ -852,8 +1029,12 @@ namespace AplicacionDespacho.ViewModels
                             }
                         });
 
-                        MessageBox.Show(huboModificacion ? "Cambios aplicados. Pallet marcado como modificado." : "Cambios aplicados.",
-                                       "Edición", MessageBoxButton.OK, MessageBoxImage.Information);
+                        // NUEVO: Mensaje específico para pallets bicolor  
+                        string mensaje = huboModificacion ?
+                            (UltimoPalletEscaneado.EsBicolor ? "Cambios aplicados. Pallet bicolor E50G6CB marcado como modificado." : "Cambios aplicados. Pallet marcado como modificado.") :
+                            "Cambios aplicados.";
+
+                        MessageBox.Show(mensaje, "Edición", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     catch (Exception ex)
                     {
@@ -872,7 +1053,7 @@ namespace AplicacionDespacho.ViewModels
             {
                 _logger.LogInfo("Iniciando reversión de cambios para pallet: {NumeroPallet}", PalletSeleccionado.NumeroPallet);
 
-                // ✅ PASO 1: Mostrar primero los datos originales en la UI        
+                // ✅ PASO 1: Mostrar primero los datos originales en la UI          
                 UltimoPalletEscaneado = new InformacionPallet
                 {
                     NumeroPallet = PalletSeleccionado.NumeroPallet,
@@ -881,32 +1062,45 @@ namespace AplicacionDespacho.ViewModels
                     Embalaje = PalletSeleccionado.EmbalajeOriginal ?? PalletSeleccionado.Embalaje,
                     NumeroDeCajas = PalletSeleccionado.NumeroDeCajasOriginal != 0 ?
                                    PalletSeleccionado.NumeroDeCajasOriginal : PalletSeleccionado.NumeroDeCajas,
-                    // ✅ PRESERVAR: Referencias originales          
+
+                    // NUEVO: Revertir campos bicolor E50G6CB a valores originales  
+                    EsBicolor = PalletSeleccionado.EsBicolor,
+                    SegundaVariedad = PalletSeleccionado.SegundaVariedadOriginal ?? PalletSeleccionado.SegundaVariedad,
+                    CajasSegundaVariedad = PalletSeleccionado.CajasSegundaVariedadOriginal != 0 ?
+                                          PalletSeleccionado.CajasSegundaVariedadOriginal : PalletSeleccionado.CajasSegundaVariedad,
+
+                    // ✅ PRESERVAR: Referencias originales            
                     VariedadOriginal = PalletSeleccionado.VariedadOriginal,
                     CalibreOriginal = PalletSeleccionado.CalibreOriginal,
                     EmbalajeOriginal = PalletSeleccionado.EmbalajeOriginal,
                     NumeroDeCajasOriginal = PalletSeleccionado.NumeroDeCajasOriginal,
-                    // ✅ RESETEAR: Estado de modificación a false al revertir          
+
+                    // NUEVO: Preservar referencias originales de campos bicolor  
+                    SegundaVariedadOriginal = PalletSeleccionado.SegundaVariedadOriginal,
+                    CajasSegundaVariedadOriginal = PalletSeleccionado.CajasSegundaVariedadOriginal,
+
+                    // ✅ RESETEAR: Estado de modificación a false al revertir            
                     Modificado = false,
                     FechaModificacion = PalletSeleccionado.FechaModificacion
                 };
 
-                // ✅ RECALCULAR: Peso con valores originales          
+                // ✅ RECALCULAR: Peso con valores originales            
                 RecalcularPesoPallet(UltimoPalletEscaneado);
 
-                // ✅ NOTIFICAR: Actualizar la UI para mostrar los datos originales        
+                // ✅ NOTIFICAR: Actualizar la UI para mostrar los datos originales          
                 OnPropertyChanged(nameof(UltimoPalletEscaneado));
 
-                // ✅ PASO 2: Ahora pedir confirmación para guardar        
+                // ✅ PASO 2: Ahora pedir confirmación para guardar          
+                string tipoMensaje = UltimoPalletEscaneado.EsBicolor ? "bicolor E50G6CB" : "";
                 var resultado = MessageBox.Show(
-                    $"Se han mostrado los valores originales del pallet {PalletSeleccionado.NumeroPallet}. ¿Desea guardar estos cambios en la base de datos?",
+                    $"Se han mostrado los valores originales del pallet {tipoMensaje} {PalletSeleccionado.NumeroPallet}. ¿Desea guardar estos cambios en la base de datos?",
                     "Confirmar Guardado de Reversión",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
 
                 if (resultado == MessageBoxResult.Yes)
                 {
-                    // ✅ PASO 3: Guardar en BD solo si confirma        
+                    // ✅ PASO 3: Guardar en BD solo si confirma          
                     var index = PalletsEscaneados.IndexOf(PalletSeleccionado);
                     if (index >= 0)
                     {
@@ -921,7 +1115,7 @@ namespace AplicacionDespacho.ViewModels
                             OnPropertyChanged(nameof(TotalCajas));
                             OnPropertyChanged(nameof(PesoTotalViaje));
 
-                            // NUEVO: Sincronizar reversión con APK  
+                            // NUEVO: Sincronizar reversión con APK    
                             _ = Task.Run(async () =>
                             {
                                 try
@@ -949,7 +1143,7 @@ namespace AplicacionDespacho.ViewModels
                 }
                 else
                 {
-                    // ✅ PASO 4: Si cancela, restaurar los valores modificados        
+                    // ✅ PASO 4: Si cancela, restaurar los valores modificados          
                     CargarPalletParaEdicion(PalletSeleccionado);
                     _logger.LogInfo("Reversión cancelada para pallet: {NumeroPallet}", PalletSeleccionado.NumeroPallet);
                     MessageBox.Show("Reversión cancelada. Se mantienen los valores modificados.", "Operación Cancelada",
@@ -1381,7 +1575,6 @@ namespace AplicacionDespacho.ViewModels
             });
         }
         // NUEVO: Método para manejar ediciones desde móvil  
-        // REEMPLAZAR completamente el método OnPalletEditReceivedFromMobile:  
         private async void OnPalletEditReceivedFromMobile(string palletNumber, object editedData, string deviceId)
         {
             Application.Current.Dispatcher.Invoke(async () =>
@@ -1394,17 +1587,21 @@ namespace AplicacionDespacho.ViewModels
                     var existingPallet = PalletsEscaneados.FirstOrDefault(p => p.NumeroPallet == palletNumber);
                     if (existingPallet != null)
                     {
-                        // PASO 1: Guardar valores ORIGINALES antes de cualquier cambio  
+                        // PASO 1: Guardar valores ORIGINALES antes de cualquier cambio    
                         string calibreOriginal = existingPallet.Calibre;
                         string variedadOriginal = existingPallet.Variedad;
                         string embalajeOriginal = existingPallet.Embalaje;
                         int cajasOriginales = existingPallet.NumeroDeCajas;
 
-                        // PASO 2: Deserializar datos editados  
+                        // NUEVO: Guardar valores originales de campos bicolor  
+                        string segundaVariedadOriginal = existingPallet.SegundaVariedad;
+                        int cajasSegundaVariedadOriginal = existingPallet.CajasSegundaVariedad;
+
+                        // PASO 2: Deserializar datos editados    
                         var editedDataJson = System.Text.Json.JsonSerializer.Serialize(editedData);
                         var editedPalletData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(editedDataJson);
 
-                        // PASO 3: Aplicar cambios UNA SOLA VEZ  
+                        // PASO 3: Aplicar cambios UNA SOLA VEZ    
                         if (editedPalletData.TryGetProperty("calibre", out var calibreElement))
                             existingPallet.Calibre = calibreElement.GetString();
 
@@ -1420,19 +1617,55 @@ namespace AplicacionDespacho.ViewModels
                                 existingPallet.NumeroDeCajas = cajasElement.TryGetInt32(out var intValue) ? intValue : (int)cajasElement.GetDouble();
                         }
 
-                        // PASO 4: Comparar valores originales con valores finales  
+                        // NUEVO: Procesar campos bicolor E50G6CB  
+                        if (editedPalletData.TryGetProperty("segundaVariedad", out var segundaVariedadElement))
+                        {
+                            existingPallet.SegundaVariedad = segundaVariedadElement.GetString();
+                            _logger.LogDebug("Segunda variedad actualizada: {SegundaVariedad}", existingPallet.SegundaVariedad);
+                        }
+
+                        if (editedPalletData.TryGetProperty("cajasSegundaVariedad", out var cajasSegundaElement))
+                        {
+                            if (cajasSegundaElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            {
+                                existingPallet.CajasSegundaVariedad = cajasSegundaElement.TryGetInt32(out var intValue) ? intValue : (int)cajasSegundaElement.GetDouble();
+                                _logger.LogDebug("Cajas segunda variedad actualizadas: {CajasSegundaVariedad}", existingPallet.CajasSegundaVariedad);
+                            }
+                        }
+
+                        // NUEVO: Actualizar valores originales de campos bicolor si no existían  
+                        if (string.IsNullOrEmpty(existingPallet.SegundaVariedadOriginal) && !string.IsNullOrEmpty(existingPallet.SegundaVariedad))
+                        {
+                            existingPallet.SegundaVariedadOriginal = existingPallet.SegundaVariedad;
+                        }
+                        if (existingPallet.CajasSegundaVariedadOriginal == 0 && existingPallet.CajasSegundaVariedad > 0)
+                        {
+                            existingPallet.CajasSegundaVariedadOriginal = existingPallet.CajasSegundaVariedad;
+                        }
+
+                        // PASO 4: Comparar valores originales con valores finales (incluyendo campos bicolor)  
                         bool huboModificacion =
                             existingPallet.Calibre != calibreOriginal ||
                             existingPallet.Variedad != variedadOriginal ||
                             existingPallet.Embalaje != embalajeOriginal ||
-                            existingPallet.NumeroDeCajas != cajasOriginales;
+                            existingPallet.NumeroDeCajas != cajasOriginales ||
+                            existingPallet.SegundaVariedad != segundaVariedadOriginal ||
+                            existingPallet.CajasSegundaVariedad != cajasSegundaVariedadOriginal;
 
                         existingPallet.Modificado = huboModificacion;
                         existingPallet.FechaModificacion = huboModificacion ? FechaOperacionalHelper.ObtenerFechaOperacionalActual() : existingPallet.FechaModificacion;
 
                         _logger.LogDebug("Modificación detectada en edición desde móvil: {HuboModificacion}", huboModificacion);
 
-                        // Resto del código permanece igual...  
+                        // NUEVO: Log específico para pallets bicolor  
+                        if (existingPallet.EsBicolor)
+                        {
+                            _logger.LogInfo("🎨 Pallet bicolor editado desde móvil - Variedad1: {Variedad1} ({Cajas1}), Variedad2: {Variedad2} ({Cajas2})",
+                                           existingPallet.Variedad, existingPallet.NumeroDeCajas,
+                                           existingPallet.SegundaVariedad, existingPallet.CajasSegundaVariedad);
+                        }
+
+                        // Resto del código permanece igual...    
                         RecalcularPesoPallet(existingPallet);
                         _accesoDatosViajes.ActualizarPalletViaje(existingPallet, ViajeActivo.ViajeId);
 

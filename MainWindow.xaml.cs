@@ -87,6 +87,7 @@ namespace AplicacionDespacho
             // Ya no necesitamos cargar datos iniciales aquí        
             // porque se manejan en las ventanas modales
                 CargarVariedades(); // AGREGAR ESTA LÍNEA 
+                CargarEmbalajes();
         }
 
         private void CargarVariedades() // AGREGAR TODO ESTE MÉTODO  
@@ -95,6 +96,9 @@ namespace AplicacionDespacho
             {
                 var variedades = _accesoDatosViajes.ObtenerTodasLasVariedades();
                 cmbVariedad.ItemsSource = variedades;
+                // Para pallets bicolor  
+                cmbVariedad1.ItemsSource = variedades;
+                cmbVariedad2.ItemsSource = variedades;
             }
             catch (Exception ex)
             {
@@ -159,7 +163,18 @@ namespace AplicacionDespacho
             ventanaConfig.Owner = this;
             ventanaConfig.ShowDialog();
         }
-
+        private void CargarEmbalajes()
+        {
+            try
+            {
+                var embalajes = _accesoDatosViajes.ObtenerTodosLosEmbalajes();
+                cmbEmbalaje.ItemsSource = embalajes;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error al cargar embalajes: {ex.Message}");
+            }
+        }
         private async void VerificarConfiguracionBD()
         {
             try

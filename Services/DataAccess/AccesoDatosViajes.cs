@@ -324,20 +324,23 @@ namespace AplicacionDespacho.Services.DataAccess
 
         public void GuardarPalletViaje(InformacionPallet pallet, int viajeId)
         {
-            string consulta = @"  
-        INSERT INTO PALLETS_VIAJE (NumeroPallet, Variedad, Calibre, Embalaje, NumeroDeCajas,   
-                                   ViajeId, PesoUnitario, PesoTotal, VariedadOriginal,   
-                                   CalibreOriginal, EmbalajeOriginal, NumeroDeCajasOriginal,   
-                                   FechaEscaneo, Modificado, FechaModificacion)  
-        VALUES (@NumeroPallet, @Variedad, @Calibre, @Embalaje, @NumeroDeCajas,   
-                @ViajeId, @PesoUnitario, @PesoTotal, @VariedadOriginal,   
-                @CalibreOriginal, @EmbalajeOriginal, @NumeroDeCajasOriginal,   
-                @FechaEscaneo, @Modificado, @FechaModificacion)";
+            string consulta = @"    
+        INSERT INTO PALLETS_VIAJE (NumeroPallet, Variedad, Calibre, Embalaje, NumeroDeCajas,     
+                                   ViajeId, PesoUnitario, PesoTotal, VariedadOriginal,     
+                                   CalibreOriginal, EmbalajeOriginal, NumeroDeCajasOriginal,     
+                                   FechaEscaneo, Modificado, FechaModificacion,  
+                                   SegundaVariedad, CajasSegundaVariedad)    
+        VALUES (@NumeroPallet, @Variedad, @Calibre, @Embalaje, @NumeroDeCajas,     
+                @ViajeId, @PesoUnitario, @PesoTotal, @VariedadOriginal,     
+                @CalibreOriginal, @EmbalajeOriginal, @NumeroDeCajasOriginal,     
+                @FechaEscaneo, @Modificado, @FechaModificacion,  
+                @SegundaVariedad, @CajasSegundaVariedad)";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
                 using (SqlCommand comando = new SqlCommand(consulta, conexion))
                 {
+                    // Parámetros existentes  
                     comando.Parameters.AddWithValue("@NumeroPallet", pallet.NumeroPallet);
                     comando.Parameters.AddWithValue("@Variedad", pallet.Variedad ?? "");
                     comando.Parameters.AddWithValue("@Calibre", pallet.Calibre ?? "");
@@ -353,6 +356,10 @@ namespace AplicacionDespacho.Services.DataAccess
                     comando.Parameters.AddWithValue("@FechaEscaneo", FechaOperacionalHelper.ObtenerFechaOperacionalActual());
                     comando.Parameters.AddWithValue("@Modificado", pallet.Modificado);
                     comando.Parameters.AddWithValue("@FechaModificacion", pallet.FechaModificacion ?? FechaOperacionalHelper.ObtenerFechaOperacionalActual());
+
+                    // NUEVOS PARÁMETROS PARA BICOLOR E50G6CB  
+                    comando.Parameters.AddWithValue("@SegundaVariedad", pallet.SegundaVariedad ?? (object)DBNull.Value);
+                    comando.Parameters.AddWithValue("@CajasSegundaVariedad", pallet.CajasSegundaVariedad);
 
                     try
                     {
@@ -526,13 +533,13 @@ namespace AplicacionDespacho.Services.DataAccess
         public List<InformacionPallet> ObtenerPalletsDeViaje(int viajeId)
         {
             var pallets = new List<InformacionPallet>();
-            string consulta = @"  
-        SELECT NumeroPallet, Variedad, Calibre, Embalaje, NumeroDeCajas,   
-               PesoUnitario, PesoTotal, VariedadOriginal, CalibreOriginal,   
-               EmbalajeOriginal, NumeroDeCajasOriginal, FechaEscaneo,   
-               Modificado, FechaModificacion  
-        FROM PALLETS_VIAJE   
-        WHERE ViajeId = @ViajeId  
+            string consulta = @"    
+        SELECT NumeroPallet, Variedad, Calibre, Embalaje, NumeroDeCajas,     
+               PesoUnitario, PesoTotal, VariedadOriginal, CalibreOriginal,     
+               EmbalajeOriginal, NumeroDeCajasOriginal, FechaEscaneo,     
+               Modificado, FechaModificacion, SegundaVariedad, CajasSegundaVariedad    
+        FROM PALLETS_VIAJE     
+        WHERE ViajeId = @ViajeId    
         ORDER BY FechaEscaneo";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
@@ -547,7 +554,7 @@ namespace AplicacionDespacho.Services.DataAccess
                         SqlDataReader lector = comando.ExecuteReader();
                         while (lector.Read())
                         {
-                            pallets.Add(new InformacionPallet
+                            var pallet = new InformacionPallet
                             {
                                 NumeroPallet = lector["NumeroPallet"].ToString(),
                                 Variedad = lector["Variedad"].ToString(),
@@ -561,8 +568,20 @@ namespace AplicacionDespacho.Services.DataAccess
                                 EmbalajeOriginal = lector["EmbalajeOriginal"].ToString(),
                                 NumeroDeCajasOriginal = (int)lector["NumeroDeCajasOriginal"],
                                 Modificado = (bool)lector["Modificado"],
-                                FechaModificacion = lector["FechaModificacion"] as DateTime?
-                            });
+                                FechaModificacion = lector["FechaModificacion"] as DateTime?,
+
+                                // NUEVOS CAMPOS BICOLOR  
+                                SegundaVariedad = lector["SegundaVariedad"] as string,
+                                CajasSegundaVariedad = lector["CajasSegundaVariedad"] as int? ?? 0
+                            };
+
+                            // Detectar si es bicolor E50G6CB  
+                            if (pallet.Embalaje == "E50G6CB" && !string.IsNullOrEmpty(pallet.SegundaVariedad))
+                            {
+                                pallet.EsBicolor = true;
+                            }
+
+                            pallets.Add(pallet);
                         }
                         lector.Close();
                     }
@@ -1055,19 +1074,21 @@ namespace AplicacionDespacho.Services.DataAccess
             }
             return viajes;
         }
-        
+
         public void ActualizarPalletViaje(InformacionPallet pallet, int viajeId)
         {
-            string consulta = @"    
-        UPDATE PALLETS_VIAJE SET     
-            Variedad = @Variedad,    
-            Calibre = @Calibre,    
-            Embalaje = @Embalaje,    
-            NumeroDeCajas = @NumeroDeCajas,    
-            PesoUnitario = @PesoUnitario,    
-            PesoTotal = @PesoTotal,    
-            Modificado = @Modificado,    
-            FechaModificacion = @FechaModificacion    
+            string consulta = @"      
+        UPDATE PALLETS_VIAJE SET       
+            Variedad = @Variedad,      
+            Calibre = @Calibre,      
+            Embalaje = @Embalaje,      
+            NumeroDeCajas = @NumeroDeCajas,      
+            PesoUnitario = @PesoUnitario,      
+            PesoTotal = @PesoTotal,      
+            Modificado = @Modificado,      
+            FechaModificacion = @FechaModificacion,  
+            SegundaVariedad = @SegundaVariedad,  
+            CajasSegundaVariedad = @CajasSegundaVariedad      
         WHERE NumeroPallet = @NumeroPallet AND ViajeId = @ViajeId";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
@@ -1084,6 +1105,10 @@ namespace AplicacionDespacho.Services.DataAccess
                     comando.Parameters.AddWithValue("@Modificado", pallet.Modificado);
                     comando.Parameters.AddWithValue("@FechaModificacion", pallet.FechaModificacion ?? FechaOperacionalHelper.ObtenerFechaOperacionalActual());
                     comando.Parameters.AddWithValue("@ViajeId", viajeId);
+
+                    // NUEVOS PARÁMETROS BICOLOR  
+                    comando.Parameters.AddWithValue("@SegundaVariedad", pallet.SegundaVariedad ?? (object)DBNull.Value);
+                    comando.Parameters.AddWithValue("@CajasSegundaVariedad", pallet.CajasSegundaVariedad);
 
                     try
                     {

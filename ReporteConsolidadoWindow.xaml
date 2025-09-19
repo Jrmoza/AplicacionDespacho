@@ -56,10 +56,10 @@
                     <DataGridTextColumn Header="N° Guía" Binding="{Binding NumeroGuia}" Width="100"/>
                     <DataGridTextColumn Header="Responsable" Binding="{Binding Responsable}" Width="120"/>
                     <DataGridTextColumn Header="Pallet" Binding="{Binding NumeroPallet}" Width="120"/>
-                    <DataGridTextColumn Header="Variedad" Binding="{Binding Variedad}" Width="120"/>
+                    <DataGridTextColumn Header="Variedad" Binding="{Binding VariedadParaReporte}" Width="140"/>
                     <DataGridTextColumn Header="Calibre" Binding="{Binding Calibre}" Width="80"/>
                     <DataGridTextColumn Header="Embalaje" Binding="{Binding Embalaje}" Width="120"/>
-                    <DataGridTextColumn Header="N° Cajas" Binding="{Binding NumeroDeCajas}" Width="80"/>
+                    <DataGridTextColumn Header="N° Cajas" Binding="{Binding TotalCajasDisplay}" Width="120"/>
                     <DataGridTextColumn Header="Peso Total (kg)" Binding="{Binding PesoTotal, StringFormat=F3}" Width="100"/>
                     <DataGridTextColumn Header="Empresa" Binding="{Binding NombreEmpresa}" Width="150"/>
                     <DataGridTextColumn Header="Conductor" Binding="{Binding NombreConductor}" Width="150"/>
@@ -90,7 +90,7 @@
                               IsReadOnly="True"  
                               MaxHeight="150">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Variedad" Binding="{Binding Variedad}" Width="120"/>
+                            <DataGridTextColumn Header="Variedad" Binding="{Binding Variedad}" Width="140"/>
                             <DataGridTextColumn Header="Pallets" Binding="{Binding TotalPallets}" Width="80"/>
                             <DataGridTextColumn Header="Cajas" Binding="{Binding TotalCajas}" Width="80"/>
                             <DataGridTextColumn Header="Kilos" Binding="{Binding TotalKilos, StringFormat=F3}" Width="100"/>
@@ -118,6 +118,13 @@
                 <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Black" BorderThickness="2"   
                         Background="LightGray" Margin="0,10,0,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
+                        <!-- Contadores PC/PH simples -->
+                        <TextBlock Text="PC: " FontWeight="Bold" FontSize="12" Foreground="Green"/>
+                        <TextBlock x:Name="txtTotalPC" FontWeight="Bold" FontSize="12" Foreground="Green" Margin="0,0,20,0"/>
+                        <TextBlock Text="PH: " FontWeight="Bold" FontSize="12" Foreground="Orange"/>
+                        <TextBlock x:Name="txtTotalPH" FontWeight="Bold" FontSize="12" Foreground="Orange" Margin="0,0,30,0"/>
+
+                        <!-- Totales generales existentes -->
                         <TextBlock Text="TOTALES GENERALES - Pallets: " FontWeight="Bold" FontSize="14"/>
                         <TextBlock x:Name="txtTotalPalletsGeneral" FontWeight="Bold" FontSize="14" Margin="0,0,30,0"/>
                         <TextBlock Text="Cajas: " FontWeight="Bold" FontSize="14"/>

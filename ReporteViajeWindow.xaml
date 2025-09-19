@@ -2,7 +2,7 @@
 <Window x:Class="AplicacionDespacho.ReporteViajeWindow"    
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"    
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"    
-        Title="Reporte de Viaje" Height="600" Width="800"    
+        Title="Reporte de Viaje" Height="600" Width="1000"   
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="20">
@@ -75,10 +75,10 @@
                       AlternatingRowBackground="LightGray">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Pallet" Binding="{Binding NumeroPallet}" Width="100"/>
-                    <DataGridTextColumn Header="Variedad" Binding="{Binding Variedad}" Width="120"/>
+                    <DataGridTextColumn Header="Variedad" Binding="{Binding VariedadParaReporte}" Width="150"/>
                     <DataGridTextColumn Header="Calibre" Binding="{Binding Calibre}" Width="100"/>
                     <DataGridTextColumn Header="Embalaje" Binding="{Binding Embalaje}" Width="120"/>
-                    <DataGridTextColumn Header="N° Cajas" Binding="{Binding NumeroDeCajas}" Width="80"/>
+                    <DataGridTextColumn Header="N° Cajas" Binding="{Binding TotalCajasDisplay}" Width="120"/>
                     <DataGridTextColumn Header="Peso Unit. (kg)" Binding="{Binding PesoUnitario, StringFormat=F3}" Width="100"/>
                     <DataGridTextColumn Header="Peso Total (kg)" Binding="{Binding PesoTotal, StringFormat=F3}" Width="110"/>
                     <DataGridCheckBoxColumn Header="Modificado" Binding="{Binding Modificado}" Width="80"/>
@@ -96,6 +96,13 @@
                 <TextBlock Text="Peso Total: " FontWeight="Bold"/>
                 <TextBlock x:Name="txtPesoTotal" FontWeight="Bold"/>
                 <TextBlock Text=" kg" FontWeight="Bold"/>
+                <!-- NUEVO: Contadores PC/PH -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,0,10,10">
+                    <TextBlock Text="PC: " FontWeight="Bold" Foreground="Green"/>
+                    <TextBlock x:Name="txtTotalPC" FontWeight="Bold" Foreground="Green" Margin="0,0,20,0"/>
+                    <TextBlock Text="PH: " FontWeight="Bold" Foreground="Orange"/>
+                    <TextBlock x:Name="txtTotalPH" FontWeight="Bold" Foreground="Orange"/>
+                </StackPanel>
             </StackPanel>
         </GroupBox>
 

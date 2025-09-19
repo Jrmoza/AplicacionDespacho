@@ -138,10 +138,10 @@ namespace AplicacionDespacho.Services.Export
                 worksheet.Cells[row, 3].Value = pallet.NumeroGuia;
                 worksheet.Cells[row, 4].Value = pallet.Responsable;
                 worksheet.Cells[row, 5].Value = pallet.NumeroPallet;
-                worksheet.Cells[row, 6].Value = pallet.Variedad;
+                worksheet.Cells[row, 6].Value = pallet.VariedadParaReporte;
                 worksheet.Cells[row, 7].Value = pallet.Calibre;
                 worksheet.Cells[row, 8].Value = pallet.Embalaje;
-                worksheet.Cells[row, 9].Value = pallet.NumeroDeCajas;
+                worksheet.Cells[row, 9].Value = pallet.TotalCajasDisplay; // Para mostrar formato detallado
                 worksheet.Cells[row, 10].Value = pallet.PesoTotal;
                 worksheet.Cells[row, 11].Value = pallet.NombreEmpresa;
                 worksheet.Cells[row, 12].Value = pallet.NombreConductor;
@@ -181,12 +181,12 @@ namespace AplicacionDespacho.Services.Export
             row++;
 
             var resumenVariedad = pallets
-                .GroupBy(p => p.Variedad)
+                .GroupBy(p => p.VariedadParaReporte)
                 .Select(g => new
                 {
                     Variedad = g.Key,
                     TotalPallets = g.Count(),
-                    TotalCajas = g.Sum(p => p.NumeroDeCajas),
+                    TotalCajas = g.Sum(p => p.CajasParaReporte),
                     TotalKilos = g.Sum(p => p.PesoTotal)
                 })
                 .OrderBy(r => r.Variedad);
@@ -233,7 +233,7 @@ namespace AplicacionDespacho.Services.Export
                 {
                     Empresa = g.Key,
                     TotalPallets = g.Count(),
-                    TotalCajas = g.Sum(p => p.NumeroDeCajas),
+                    TotalCajas = g.Sum(p => p.CajasParaReporte),
                     TotalKilos = g.Sum(p => p.PesoTotal),
                     CantidadViajes = g.Select(p => p.ViajeId).Distinct().Count()
                 })
@@ -266,12 +266,35 @@ namespace AplicacionDespacho.Services.Export
             row++;
 
             worksheet.Cells[row, 1].Value = "Total Cajas:";
-            worksheet.Cells[row, 2].Value = pallets.Sum(p => p.NumeroDeCajas);
+            worksheet.Cells[row, 2].Value = pallets.Sum(p => p.CajasParaReporte);
             row++;
 
             worksheet.Cells[row, 1].Value = "Total Kilos:";
             worksheet.Cells[row, 2].Value = pallets.Sum(p => p.PesoTotal);
             worksheet.Cells[row, 2].Style.Numberformat.Format = "0.000";
+            // NUEVO: Contadores simples PC/PH  
+            row += 2;
+            worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
+            worksheet.Cells[row, 1].Style.Font.Bold = true;
+            row++;
+
+            var totalPC = pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PC");
+            var totalPH = pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PH");
+
+            worksheet.Cells[row, 1].Value = "Pallets PC (Completos):";
+            worksheet.Cells[row, 2].Value = totalPC;
+            row++;
+
+            worksheet.Cells[row, 1].Value = "Pallets PH (Puchos):";
+            worksheet.Cells[row, 2].Value = totalPH;
+
+            // Formatear sección PC/PH  
+            using (var range = worksheet.Cells[row - 1, 1, row, 2])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightCyan);
+            }
 
             // Formatear totales  
             using (var range = worksheet.Cells[row - 2, 1, row, 2])
@@ -280,6 +303,16 @@ namespace AplicacionDespacho.Services.Export
                 range.Style.Fill.PatternType = ExcelFillStyle.Solid;
                 range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
             }
+
+        }
+        private string DeterminarTipoPallet(string numeroPallet)
+        {
+            if (numeroPallet.ToUpper().EndsWith("PC") || numeroPallet.ToUpper().Contains("PC"))
+                return "PC";
+            else if (numeroPallet.ToUpper().EndsWith("PH") || numeroPallet.ToUpper().Contains("PH"))
+                return "PH";
+            else
+                return "PC"; // Por defecto PC si no se puede determinar  
         }
     }
 }
