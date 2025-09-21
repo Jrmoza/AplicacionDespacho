@@ -92,8 +92,9 @@
                       FontWeight="Bold">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Variedad - Embalaje" Binding="{Binding VariedadEmbalaje}" Width="300"/>
-                    <DataGridTextColumn Header="Total Cajas" Binding="{Binding TotalCajas}" Width="150"/>
-                    <DataGridTextColumn Header="Total Kilos" Binding="{Binding TotalKilos, StringFormat=F3}" Width="150"/>
+                    <DataGridTextColumn Header="Total Cajas" Binding="{Binding TotalCajas}" Width="120"/>
+                    <DataGridTextColumn Header="PC/PH" Binding="{Binding DesglosePC_PH}" Width="100"/>
+                    <DataGridTextColumn Header="Total Kilos" Binding="{Binding TotalKilos, StringFormat=F3}" Width="130"/>
                 </DataGrid.Columns>
             </DataGrid>
         </GroupBox>

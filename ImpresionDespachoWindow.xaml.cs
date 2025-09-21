@@ -388,14 +388,14 @@ namespace AplicacionDespacho
             tabla.BorderBrush = Brushes.Black;
             tabla.BorderThickness = new Thickness(1);
 
-            // 2 columnas: Resumen a la izquierda, Totales a la derecha      
+            // 2 columnas: Resumen a la izquierda, Totales a la derecha        
             tabla.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             tabla.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
 
             TableRowGroup grupo = new TableRowGroup();
             TableRow fila = new TableRow();
 
-            // Celda izquierda: Resumen por variedad con embalajes      
+            // Celda izquierda: Resumen por variedad con embalajes        
             TableCell celdaResumen = new TableCell();
             celdaResumen.BorderBrush = Brushes.Black;
             celdaResumen.BorderThickness = new Thickness(0.5);
@@ -409,10 +409,15 @@ namespace AplicacionDespacho
             };
             celdaResumen.Blocks.Add(tituloResumen);
 
-            // ✅ MOSTRAR SUBTOTALES POR VARIEDAD CON DETALLES DE EMBALAJE (USANDO DATOS BICOLOR)  
+            // ✅ MOSTRAR SUBTOTALES POR VARIEDAD CON DETALLES DE EMBALAJE Y CONTADORES PC/PH    
             foreach (var variedad in _resumenPorVariedad)
             {
-                // Subtotal por variedad (encabezado principal) - USAR VariedadParaReporte para mostrar variedades bicolor completas  
+                // NUEVO: Calcular contadores PC/PH para esta variedad específica  
+                var palletsDeEstaVariedad = _pallets.Where(p => p.VariedadParaReporte == variedad.Variedad).ToList();
+                var totalPCVariedad = palletsDeEstaVariedad.Count(p => p.EsPC);
+                var totalPHVariedad = palletsDeEstaVariedad.Count(p => p.EsPH);
+
+                // Subtotal por variedad (encabezado principal) - USAR VariedadParaReporte para mostrar variedades bicolor completas    
                 Paragraph lineaVariedad = new Paragraph()
                 {
                     Margin = new Thickness(0, 3, 0, 2)
@@ -423,22 +428,38 @@ namespace AplicacionDespacho
                     FontWeight = FontWeights.Bold,
                     TextDecorations = TextDecorations.Underline
                 });
-                lineaVariedad.Inlines.Add(new Run($"{variedad.TotalPallets} pallets, {variedad.TotalCajas} cajas, {variedad.TotalKilos:F1} kg")
+
+                // NUEVO: Formato con contadores PC/PH por variedad  
+                string contadoresPCPH = "";
+                if (totalPCVariedad > 0 && totalPHVariedad > 0)
+                {
+                    contadoresPCPH = $", {totalPCVariedad} PC y {totalPHVariedad} PH";
+                }
+                else if (totalPCVariedad > 0)
+                {
+                    contadoresPCPH = $", {totalPCVariedad} PC";
+                }
+                else if (totalPHVariedad > 0)
+                {
+                    contadoresPCPH = $", {totalPHVariedad} PH";
+                }
+
+                lineaVariedad.Inlines.Add(new Run($"{variedad.TotalPallets} pallets{contadoresPCPH}, {variedad.TotalCajas} cajas, {variedad.TotalKilos:F1} kg")
                 {
                     FontSize = 11,
                     FontWeight = FontWeights.Bold
                 });
                 celdaResumen.Blocks.Add(lineaVariedad);
 
-                // Detalles por embalaje dentro de cada variedad      
+                // Detalles por embalaje dentro de cada variedad        
                 foreach (var detalle in variedad.DetallesPorEmbalaje)
                 {
                     Paragraph lineaDetalle = new Paragraph()
                     {
-                        Margin = new Thickness(20, 1, 0, 1) // Indentado más profundo      
+                        Margin = new Thickness(20, 1, 0, 1) // Indentado más profundo        
                     };
 
-                    // Extraer solo el nombre del embalaje (después del guión)      
+                    // Extraer solo el nombre del embalaje (después del guión)        
                     string nombreEmbalaje = detalle.VariedadEmbalaje.Split('-')[1].Trim();
 
                     lineaDetalle.Inlines.Add(new Run($"◦ {nombreEmbalaje}: ")
@@ -454,19 +475,19 @@ namespace AplicacionDespacho
                 }
             }
 
-            // Celda derecha: Totales generales CON CONTADORES PC/PH  
+            // Celda derecha: Totales generales CON CONTADORES PC/PH    
             TableCell celdaTotales = new TableCell();
             celdaTotales.BorderBrush = Brushes.Black;
             celdaTotales.BorderThickness = new Thickness(0.5);
             celdaTotales.Padding = new Thickness(6);
             celdaTotales.Background = Brushes.LightYellow;
 
-            // USAR PROPIEDADES BICOLOR PARA TOTALES CORRECTOS  
+            // USAR PROPIEDADES BICOLOR PARA TOTALES CORRECTOS    
             var totalCajas = _pallets.Sum(p => p.CajasParaReporte);
             var totalKilos = _pallets.Sum(p => p.PesoTotalBicolor);
             var totalPallets = _pallets.Count;
 
-            // NUEVOS CONTADORES PC/PH  
+            // NUEVOS CONTADORES PC/PH    
             var totalPC = _pallets.Count(p => p.EsPC);
             var totalPH = _pallets.Count(p => p.EsPH);
 
@@ -484,7 +505,7 @@ namespace AplicacionDespacho
             totales.Inlines.Add(new LineBreak());
             totales.Inlines.Add(new Run($"Kilos: {totalKilos:F1}") { FontSize = 16 });
 
-            // AGREGAR SEPARADOR Y CONTADORES PC/PH  
+            // AGREGAR SEPARADOR Y CONTADORES PC/PH    
             totales.Inlines.Add(new LineBreak());
             totales.Inlines.Add(new LineBreak());
             totales.Inlines.Add(new Run("CLASIFICACIÓN") { FontSize = 11, FontWeight = FontWeights.Bold });

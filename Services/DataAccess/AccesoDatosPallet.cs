@@ -3,20 +3,23 @@ using System;
 using System.Data.SqlClient;  
 using AplicacionDespacho.Models;  
 using AplicacionDespacho.Configuration;  
-using AplicacionDespacho.Services.Logging;  
-  
+using AplicacionDespacho.Services.Logging;
+
+
+
+
 namespace AplicacionDespacho.Services.DataAccess  
 {  
     public class AccesoDatosPallet : IAccesoDatosPallet  
     {  
         private readonly string _cadenaConexion;  
-        private readonly ILoggingService _logger;  
-  
+        private readonly ILoggingService _logger;
+        private readonly AccesoDatosEmbalajeBicolor _accesoDatosEmbalajeBicolor;
         public AccesoDatosPallet()  
         {
             _cadenaConexion = AppConfig.PackingSJPConnectionStringDynamic;
-            _logger = LoggingFactory.CreateLogger("AccesoDatosPallet");  
-              
+            _logger = LoggingFactory.CreateLogger("AccesoDatosPallet");
+            _accesoDatosEmbalajeBicolor = new AccesoDatosEmbalajeBicolor();
             _logger.LogInfo("AccesoDatosPallet inicializado con conexión a {Database}", "Packing_SJP");  
         }  
   
@@ -79,9 +82,10 @@ namespace AplicacionDespacho.Services.DataAccess
                             };
 
                             // NUEVO: Detectar si es bicolor E50G6CB  
-                            if (informacionPallet.Embalaje == "E50G6CB")
+                            if (_accesoDatosEmbalajeBicolor.EsEmbalajeBicolor(informacionPallet.Embalaje))
                             {
-                                _logger.LogInfo("🎯 Pallet bicolor E50G6CB detectado: {NumeroPallet}", informacionPallet.NumeroPallet);
+                                _logger.LogInfo("🎯 Pallet bicolor detectado: {NumeroPallet} - Embalaje: {Embalaje}",
+                                informacionPallet.NumeroPallet, informacionPallet.Embalaje);
 
                                 informacionPallet.EsBicolor = true;
                                 // Los campos SegundaVariedad y CajasSegundaVariedad se llenarán manualmente en la UI  

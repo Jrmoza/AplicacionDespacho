@@ -135,7 +135,7 @@
                         <!-- Información específica para pallets bicolor (visible solo si es bicolor) -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="5"    
                                    Visibility="{Binding EsBicolor, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="INFORMACIÓN BICOLOR E50G6CB:" FontWeight="Bold"   
+                            <TextBlock Text="INFORMACIÓN BICOLOR:" FontWeight="Bold"   
                                       Foreground="Orange" Margin="0,0,0,5"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>

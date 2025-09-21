@@ -18,12 +18,14 @@ namespace AplicacionDespacho.Services.DataAccess
         private readonly string _cadenaConexion;
         private readonly ILoggingService _logger;
         private static int _instanceCount = 0;
+        private readonly AccesoDatosEmbalajeBicolor _accesoDatosEmbalajeBicolor;
 
         public AccesoDatosViajes()
         {
             _cadenaConexion = AppConfig.DespachosSJPConnectionStringDynamic;
             System.Diagnostics.Debug.WriteLine($"[DEBUG] AccesoDatosViajes usando conexión: {_cadenaConexion}");
             _logger = LoggingFactory.CreateLogger("AccesoDatosViajes"); // AGREGAR ESTA LÍNEA 
+            _accesoDatosEmbalajeBicolor = new AccesoDatosEmbalajeBicolor();
 
             var instanceNumber = Interlocked.Increment(ref _instanceCount);
             _logger.LogInfo($"🏗️ AccesoDatosViajes instancia #{instanceNumber} creada");
@@ -39,8 +41,8 @@ namespace AplicacionDespacho.Services.DataAccess
 
         public void GuardarViaje(Viaje nuevoViaje)
         {
-                // Aplicar lógica de fecha operacional para FechaCreacion  
-                var fechaOperacional = FechaOperacionalHelper.ObtenerFechaOperacionalActual();  
+            // Aplicar lógica de fecha operacional para FechaCreacion  
+            var fechaOperacional = FechaOperacionalHelper.ObtenerFechaOperacionalActual();
 
             string consulta = @"  
                 INSERT INTO VIAJES (Fecha, NumeroViaje, Responsable, NumeroGuia, PuntoPartida, PuntoLlegada, VehiculoId, ConductorId, Estado, FechaCreacion, UsuarioCreacion)  
@@ -576,7 +578,7 @@ namespace AplicacionDespacho.Services.DataAccess
                             };
 
                             // Detectar si es bicolor E50G6CB  
-                            if (pallet.Embalaje == "E50G6CB" && !string.IsNullOrEmpty(pallet.SegundaVariedad))
+                            if (_accesoDatosEmbalajeBicolor.EsEmbalajeBicolor(pallet.Embalaje) && !string.IsNullOrEmpty(pallet.SegundaVariedad))
                             {
                                 pallet.EsBicolor = true;
                             }
@@ -598,22 +600,23 @@ namespace AplicacionDespacho.Services.DataAccess
         public List<ReporteGeneralPallet> ObtenerPalletsEnviadosPorFechas(DateTime fechaDesde, DateTime fechaHasta, int? empresaId = null, int? conductorId = null)
         {
             var pallets = new List<ReporteGeneralPallet>();
-            string consulta = @"    
-    SELECT pv.PalletId, pv.NumeroPallet, pv.Variedad, pv.Calibre, pv.Embalaje,     
-           pv.NumeroDeCajas, pv.PesoUnitario, pv.PesoTotal, pv.FechaEscaneo,     
-           pv.Modificado, pv.EstadoEnvio, pv.FechaEnvio, pv.UsuarioEnvio,    
-           v.ViajeId, v.Fecha as FechaViaje, v.NumeroViaje, v.NumeroGuia,     
-           v.Responsable, v.PuntoPartida, v.PuntoLlegada, v.Estado as EstadoViaje,    
-           v.FechaCreacion as FechaCreacionViaje, v.FechaModificacion as FechaModificacionViaje,    
-           v.UsuarioCreacion as UsuarioCreacionViaje, v.UsuarioModificacion as UsuarioModificacionViaje,    
-           e.NombreEmpresa, e.RUC as RUCEmpresa, c.NombreConductor, vh.Placa as PlacaVehiculo    
-    FROM PALLETS_VIAJE pv    
-    INNER JOIN VIAJES v ON pv.ViajeId = v.ViajeId    
-    INNER JOIN VEHICULOS vh ON v.VehiculoId = vh.VehiculoId    
-    INNER JOIN EMPRESAS_TRANSPORTE e ON vh.EmpresaId = e.EmpresaId    
-    INNER JOIN CONDUCTORES c ON v.ConductorId = c.ConductorId    
-    WHERE pv.EstadoEnvio = 'Enviado'  
-    AND pv.FechaEnvio >= @FechaDesde    
+            string consulta = @"      
+    SELECT pv.PalletId, pv.NumeroPallet, pv.Variedad, pv.Calibre, pv.Embalaje,       
+           pv.NumeroDeCajas, pv.PesoUnitario, pv.PesoTotal, pv.FechaEscaneo,       
+           pv.Modificado, pv.EstadoEnvio, pv.FechaEnvio, pv.UsuarioEnvio,  
+           pv.SegundaVariedad, pv.CajasSegundaVariedad,      
+           v.ViajeId, v.Fecha as FechaViaje, v.NumeroViaje, v.NumeroGuia,       
+           v.Responsable, v.PuntoPartida, v.PuntoLlegada, v.Estado as EstadoViaje,      
+           v.FechaCreacion as FechaCreacionViaje, v.FechaModificacion as FechaModificacionViaje,      
+           v.UsuarioCreacion as UsuarioCreacionViaje, v.UsuarioModificacion as UsuarioModificacionViaje,      
+           e.NombreEmpresa, e.RUC as RUCEmpresa, c.NombreConductor, vh.Placa as PlacaVehiculo      
+    FROM PALLETS_VIAJE pv      
+    INNER JOIN VIAJES v ON pv.ViajeId = v.ViajeId      
+    INNER JOIN VEHICULOS vh ON v.VehiculoId = vh.VehiculoId      
+    INNER JOIN EMPRESAS_TRANSPORTE e ON vh.EmpresaId = e.EmpresaId      
+    INNER JOIN CONDUCTORES c ON v.ConductorId = c.ConductorId      
+    WHERE pv.EstadoEnvio = 'Enviado'    
+    AND pv.FechaEnvio >= @FechaDesde      
     AND pv.FechaEnvio <= @FechaHasta";
 
             var parametros = new List<SqlParameter>
@@ -648,9 +651,9 @@ namespace AplicacionDespacho.Services.DataAccess
                         SqlDataReader lector = comando.ExecuteReader();
                         while (lector.Read())
                         {
-                            pallets.Add(new ReporteGeneralPallet
+                            var pallet = new ReporteGeneralPallet
                             {
-                                // Información del Pallet  
+                                // Información del Pallet    
                                 PalletId = (int)lector["PalletId"],
                                 NumeroPallet = lector["NumeroPallet"].ToString(),
                                 Variedad = lector["Variedad"].ToString(),
@@ -662,12 +665,16 @@ namespace AplicacionDespacho.Services.DataAccess
                                 FechaEscaneo = (DateTime)lector["FechaEscaneo"],
                                 Modificado = (bool)lector["Modificado"],
 
-                                // Información de Envío  
+                                // NUEVOS CAMPOS BICOLOR E50G6CB  
+                                SegundaVariedad = lector["SegundaVariedad"] as string,
+                                CajasSegundaVariedad = lector["CajasSegundaVariedad"] as int? ?? 0,
+
+                                // Información de Envío    
                                 EstadoEnvio = lector["EstadoEnvio"].ToString(),
                                 FechaEnvio = lector["FechaEnvio"] as DateTime?,
                                 UsuarioEnvio = lector["UsuarioEnvio"].ToString(),
 
-                                // Información del Viaje  
+                                // Información del Viaje    
                                 ViajeId = (int)lector["ViajeId"],
                                 FechaViaje = (DateTime)lector["FechaViaje"],
                                 NumeroViaje = (int)lector["NumeroViaje"],
@@ -681,12 +688,20 @@ namespace AplicacionDespacho.Services.DataAccess
                                 UsuarioCreacionViaje = lector["UsuarioCreacionViaje"].ToString(),
                                 UsuarioModificacionViaje = lector["UsuarioModificacionViaje"].ToString(),
 
-                                // Información de Transporte  
+                                // Información de Transporte    
                                 NombreEmpresa = lector["NombreEmpresa"].ToString(),
                                 RUCEmpresa = lector["RUCEmpresa"].ToString(),
                                 NombreConductor = lector["NombreConductor"].ToString(),
                                 PlacaVehiculo = lector["PlacaVehiculo"].ToString()
-                            });
+                            };
+
+                            // DETECTAR SI ES BICOLOR E50G6CB  
+                            if (_accesoDatosEmbalajeBicolor.EsEmbalajeBicolor(pallet.Embalaje) && !string.IsNullOrEmpty(pallet.SegundaVariedad))
+                            {
+                                pallet.EsBicolor = true;
+                            }
+
+                            pallets.Add(pallet);
                         }
                         lector.Close();
                     }
@@ -700,6 +715,7 @@ namespace AplicacionDespacho.Services.DataAccess
 
             return pallets;
         }
+ 
         public List<PesoEmbalaje> ObtenerTodosPesosEmbalaje()
         {
             var pesos = new List<PesoEmbalaje>();

@@ -23,7 +23,7 @@ namespace AplicacionDespacho.ViewModels
         private readonly IAccesoDatosPallet _accesoDatos;
         private readonly AccesoDatosViajes _accesoDatosViajes;
         private readonly ILoggingService _logger;
-
+        private readonly AccesoDatosEmbalajeBicolor _accesoDatosEmbalajeBicolor;
 
         private string _estadoConexionTexto;
         // NUEVO: Propiedades para SignalR y cola de escaneos  
@@ -113,6 +113,8 @@ namespace AplicacionDespacho.ViewModels
             _signalRService.PalletUpdated += OnPalletUpdatedFromMobile;
             _signalRService.PalletDeleted += OnPalletDeletedFromMobile;
             _signalRService.PalletNumberReceived += OnPalletNumberReceivedFromMobile;
+            // NUEVO: Inicializar acceso a datos para embalajes bicolor
+            _accesoDatosEmbalajeBicolor = new AccesoDatosEmbalajeBicolor();
 
             // NUEVO: Suscribirse al procesamiento de cola  
             _palletScanQueue.ProcessRequest += OnProcessPalletFromQueue;
@@ -498,9 +500,10 @@ namespace AplicacionDespacho.ViewModels
                 pallet.NumeroDeCajasOriginal = pallet.NumeroDeCajas;
 
                 // NUEVO: Detectar si es pallet bicolor E50G6CB    
-                if (pallet.Embalaje == "E50G6CB")
+                if (_accesoDatosEmbalajeBicolor.EsEmbalajeBicolor(pallet.Embalaje))
                 {
-                    _logger.LogInfo("🎯 Pallet bicolor E50G6CB detectado: {NumeroPallet}", pallet.NumeroPallet);
+                    _logger.LogInfo("🎯 Pallet bicolor detectado: {NumeroPallet} - Embalaje: {Embalaje}",
+                    pallet.NumeroPallet, pallet.Embalaje);
 
                     // Marcar como bicolor    
                     pallet.EsBicolor = true;
@@ -1031,7 +1034,7 @@ namespace AplicacionDespacho.ViewModels
 
                         // NUEVO: Mensaje específico para pallets bicolor  
                         string mensaje = huboModificacion ?
-                            (UltimoPalletEscaneado.EsBicolor ? "Cambios aplicados. Pallet bicolor E50G6CB marcado como modificado." : "Cambios aplicados. Pallet marcado como modificado.") :
+                            (UltimoPalletEscaneado.EsBicolor ? "Cambios aplicados. Pallet bicolor marcado como modificado." : "Cambios aplicados. Pallet marcado como modificado.") :
                             "Cambios aplicados.";
 
                         MessageBox.Show(mensaje, "Edición", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1091,7 +1094,7 @@ namespace AplicacionDespacho.ViewModels
                 OnPropertyChanged(nameof(UltimoPalletEscaneado));
 
                 // ✅ PASO 2: Ahora pedir confirmación para guardar          
-                string tipoMensaje = UltimoPalletEscaneado.EsBicolor ? "bicolor E50G6CB" : "";
+                string tipoMensaje = UltimoPalletEscaneado.EsBicolor ? "bicolor " : "";
                 var resultado = MessageBox.Show(
                     $"Se han mostrado los valores originales del pallet {tipoMensaje} {PalletSeleccionado.NumeroPallet}. ¿Desea guardar estos cambios en la base de datos?",
                     "Confirmar Guardado de Reversión",
