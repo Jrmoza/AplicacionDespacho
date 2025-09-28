@@ -6,6 +6,8 @@ using AplicacionDespacho.utilities;
 using Microsoft.AspNetCore.SignalR.Client;
 using System;
 using System.Threading.Tasks;
+using System.Threading;
+
 
 namespace AplicacionDespacho.Services
 {
@@ -22,7 +24,7 @@ namespace AplicacionDespacho.Services
         public event Action<string> ActiveTripRequested; // deviceId        
 
         public event Action<string> TripReopened; // tripId
-
+        public event Action<string> BicolorPackagingTypesRequested;
         // Eventos existentes          
         public event Action<object> PalletScanned;
         public event Action<object> PalletUpdated;
@@ -40,7 +42,14 @@ namespace AplicacionDespacho.Services
         // NUEVO: Eventos de estado de conexión        
         public event Action<bool> ConnectionStateChanged;
         public event Action<string> ConnectionError;
-
+        
+        private int _reconnectionAttempts = 0;
+        private readonly int _maxReconnectionAttempts = 10;
+        private Timer _healthCheckTimer;
+        private Timer _reconnectionTimer;
+        private bool _isReconnecting = false;
+        private DateTime _lastSuccessfulConnection = DateTime.MinValue;
+        private readonly Random _jitterRandom = new Random();
         // CORREGIDO: Constructor que usa configuración dinámica completamente  
         public SignalRService(string hubUrl = null)
         {
@@ -176,12 +185,19 @@ namespace AplicacionDespacho.Services
                                       deviceId, errorMessage);
                     PalletError?.Invoke(errorMessage, deviceId);
                 });
+                // NUEVO: Evento para solicitud de tipos de embalaje bicolor desde móvil
+                _connection.On<string>("BicolorPackagingTypesRequested", (deviceId) =>
+                {
+                    BicolorPackagingTypesRequested?.Invoke(deviceId);
+                });
 
                 _connection.On<object>("PalletListUpdated", (palletsData) =>
                 {
                     _logger.LogInfo("📋 Lista de pallets actualizada recibida");
                     // Este evento será manejado por el APK, no por el escritorio  
                 });
+
+
                 // NUEVO: Evento para recibir información del viaje activo    
                 _connection.On<object, object>("ActiveTripInfo", (tripData, palletsData) =>
                 {
@@ -193,6 +209,7 @@ namespace AplicacionDespacho.Services
 
                 _logger.LogInfo("✅ Conexión SignalR establecida exitosamente a {HubUrl}", _hubUrl);
                 ConnectionStateChanged?.Invoke(true);
+                StartHealthCheckTimer();
             }
             catch (Exception ex)
             {
@@ -278,6 +295,7 @@ namespace AplicacionDespacho.Services
         {
             _logger.LogInfo("✅ SignalR reconectado con ID: {ConnectionId}", connectionId);
             ConnectionStateChanged?.Invoke(true);
+            StartHealthCheckTimer();
         }
 
         public async Task JoinTripGroupAsync(string tripId)
@@ -510,6 +528,99 @@ namespace AplicacionDespacho.Services
                 {
                     _logger.LogError(ex, "❌ Error solicitando estado actual: {ErrorMessage}", ex.Message);
                 }
+            }
+        }
+        public async Task SendBicolorPackagingTypesToMobileAsync(string deviceId, List<string> packagingTypes)
+        {
+            if (_connection?.State == HubConnectionState.Connected)
+            {
+                await _connection.InvokeAsync("SendBicolorPackagingTypesToMobile", deviceId, packagingTypes);
+                _logger.LogInfo("📤 Lista de embalajes bicolor enviada vía SignalR: {DeviceId}", deviceId);
+            }
+            else
+            {
+                _logger.LogWarning("⚠️ No se puede enviar embalajes bicolor - SignalR desconectado");
+            }
+        }
+        private void StartHealthCheckTimer()
+        {
+            _healthCheckTimer?.Dispose();
+            _healthCheckTimer = new Timer(async _ =>
+            {
+                if (!await PerformHealthCheck())
+                {
+                    _logger.LogWarning("🏥 Health check falló - iniciando reconexión");
+                    _ = Task.Run(ReconnectWithBackoff);
+                }
+            }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }
+        private TimeSpan CalculateBackoffDelay(int attempt)
+        {
+            // Backoff exponencial: 2^attempt segundos, máximo 60 segundos  
+            var baseDelay = Math.Min(Math.Pow(2, attempt), 60);
+
+            // Agregar jitter (±25%) para evitar thundering herd  
+            var jitter = _jitterRandom.NextDouble() * 0.5 - 0.25; // -25% a +25%  
+            var delayWithJitter = baseDelay * (1 + jitter);
+
+            return TimeSpan.FromSeconds(Math.Max(1, delayWithJitter));
+        }
+        private async Task<bool> PerformHealthCheck()
+        {
+            try
+            {
+                if (_connection?.State != HubConnectionState.Connected)
+                    return false;
+
+                // Enviar ping y esperar respuesta en máximo 5 segundos  
+                var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await _connection.InvokeAsync("Ping", cts.Token);
+
+                _lastSuccessfulConnection = DateTime.Now;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Health check falló: {ErrorMessage}", ex.Message);
+                return false;
+            }
+        }
+        private async Task ReconnectWithBackoff()
+        {
+            if (_isReconnecting) return;
+
+            _isReconnecting = true;
+            _healthCheckTimer?.Dispose();
+
+            try
+            {
+                while (_reconnectionAttempts < _maxReconnectionAttempts && _connection?.State != HubConnectionState.Connected)
+                {
+                    var delay = CalculateBackoffDelay(_reconnectionAttempts);
+                    _logger.LogInfo("🔄 Intento de reconexión {Attempt}/{MaxAttempts} en {Delay}ms",
+                                   _reconnectionAttempts + 1, _maxReconnectionAttempts, delay.TotalMilliseconds);
+
+                    await Task.Delay(delay);
+
+                    try
+                    {
+                        await _connection.StartAsync();
+                        _logger.LogInfo("✅ Reconexión exitosa después de {Attempts} intentos", _reconnectionAttempts + 1);
+                        _reconnectionAttempts = 0;
+                        StartHealthCheckTimer();
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _reconnectionAttempts++;
+                        _logger.LogWarning("❌ Intento de reconexión {Attempt} falló: {Error}",
+                                         _reconnectionAttempts, ex.Message);
+                    }
+                }
+            }
+            finally
+            {
+                _isReconnecting = false;
             }
         }
     }

@@ -113,6 +113,7 @@ namespace AplicacionDespacho.ViewModels
             _signalRService.PalletUpdated += OnPalletUpdatedFromMobile;
             _signalRService.PalletDeleted += OnPalletDeletedFromMobile;
             _signalRService.PalletNumberReceived += OnPalletNumberReceivedFromMobile;
+            _signalRService.BicolorPackagingTypesRequested += OnBicolorPackagingTypesRequestedFromMobile;
             // NUEVO: Inicializar acceso a datos para embalajes bicolor
             _accesoDatosEmbalajeBicolor = new AccesoDatosEmbalajeBicolor();
 
@@ -256,8 +257,7 @@ namespace AplicacionDespacho.ViewModels
                     pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
                     // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC  
-                    bool esPalletCompleto = pallet.NumeroPallet.ToUpper().EndsWith("PC") ||
-                                           pallet.NumeroPallet.ToUpper().Contains("PC");
+                    bool esPalletCompleto = pallet.EsPC;
 
                     if (esPalletCompleto && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
                     {
@@ -409,7 +409,10 @@ namespace AplicacionDespacho.ViewModels
                 return PalletsEscaneados.Sum(p => p.PesoTotal);
             }
         }
-
+        public int TotalPC => PalletsEscaneados.Count(p => p.EsPC);
+        public int TotalPH => PalletsEscaneados.Count(p => p.EsPH);
+        public int TotalCT => PalletsEscaneados.Count(p => p.EsCT);
+        public int TotalEN => PalletsEscaneados.Count(p => p.EsEN);
         // COMANDOS      
         public ICommand ComandoEscanear { get; }
         public ICommand ComandoFinalizarDespacho { get; }
@@ -533,8 +536,7 @@ namespace AplicacionDespacho.ViewModels
                     pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
                     // ✅ LÓGICA DE PALLET COMPLETO RESTAURADA: Si el pallet termina en "PC" o contiene "PC"          
-                    bool esPalletCompleto = pallet.NumeroPallet.ToUpper().EndsWith("PC") ||
-                                           pallet.NumeroPallet.ToUpper().Contains("PC");
+                    bool esPalletCompleto = pallet.EsPC;
 
                     if (esPalletCompleto && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
                     {
@@ -642,6 +644,10 @@ namespace AplicacionDespacho.ViewModels
                     OnPropertyChanged(nameof(TotalCajas));
                     OnPropertyChanged(nameof(PesoTotalViaje));
 
+                    OnPropertyChanged(nameof(TotalPC));
+                    OnPropertyChanged(nameof(TotalPH));
+                    OnPropertyChanged(nameof(TotalCT));
+                    OnPropertyChanged(nameof(TotalEN));
                     // NUEVO: Sincronizar escaneo con APK      
                     _ = Task.Run(async () =>
                     {
@@ -768,6 +774,11 @@ namespace AplicacionDespacho.ViewModels
 
                     OnPropertyChanged(nameof(TotalCajas));
                     OnPropertyChanged(nameof(PesoTotalViaje));
+
+                    OnPropertyChanged(nameof(TotalPC));
+                    OnPropertyChanged(nameof(TotalPH));
+                    OnPropertyChanged(nameof(TotalCT));
+                    OnPropertyChanged(nameof(TotalEN));
                 }
                 catch (Exception ex)
                 {
@@ -840,6 +851,11 @@ namespace AplicacionDespacho.ViewModels
 
                 OnPropertyChanged(nameof(TotalCajas));
                 OnPropertyChanged(nameof(PesoTotalViaje));
+
+                OnPropertyChanged(nameof(TotalPC));
+                OnPropertyChanged(nameof(TotalPH));
+                OnPropertyChanged(nameof(TotalCT));
+                OnPropertyChanged(nameof(TotalEN));
 
                 _logger.LogInfo("Viaje #{NumeroViaje} cargado con {TotalPallets} pallets",
                               ViajeActivo.NumeroViaje, PalletsEscaneados.Count);
@@ -1009,6 +1025,11 @@ namespace AplicacionDespacho.ViewModels
                         OnPropertyChanged(nameof(TotalCajas));
                         OnPropertyChanged(nameof(PesoTotalViaje));
 
+                        OnPropertyChanged(nameof(TotalPC));
+                        OnPropertyChanged(nameof(TotalPH));
+                        OnPropertyChanged(nameof(TotalCT));
+                        OnPropertyChanged(nameof(TotalEN));
+
                         // Cargar pallets existentes del viaje desde la base        
                         var palletsExistentes = _accesoDatosViajes.ObtenerPalletsDeViaje(ViajeActivo.ViajeId);
 
@@ -1118,6 +1139,11 @@ namespace AplicacionDespacho.ViewModels
                             OnPropertyChanged(nameof(TotalCajas));
                             OnPropertyChanged(nameof(PesoTotalViaje));
 
+                            OnPropertyChanged(nameof(TotalPC));
+                            OnPropertyChanged(nameof(TotalPH));
+                            OnPropertyChanged(nameof(TotalCT));
+                            OnPropertyChanged(nameof(TotalEN));
+
                             // NUEVO: Sincronizar reversión con APK    
                             _ = Task.Run(async () =>
                             {
@@ -1181,6 +1207,11 @@ namespace AplicacionDespacho.ViewModels
                         OnPropertyChanged(nameof(TotalCajas));
                         OnPropertyChanged(nameof(PesoTotalViaje));
 
+                        OnPropertyChanged(nameof(TotalPC));
+                        OnPropertyChanged(nameof(TotalPH));
+                        OnPropertyChanged(nameof(TotalCT));
+                        OnPropertyChanged(nameof(TotalEN));
+
                         // NUEVO: Sincronizar eliminación con APK  
                         _ = Task.Run(async () =>
                         {
@@ -1218,6 +1249,12 @@ namespace AplicacionDespacho.ViewModels
             _logger.LogDebug("Actualizando totales de cajas y peso");
             OnPropertyChanged(nameof(TotalCajas));
             OnPropertyChanged(nameof(PesoTotalViaje));
+
+            // NUEVO: Agregar notificaciones para contadores PC/PH/CT  
+            OnPropertyChanged(nameof(TotalPC));
+            OnPropertyChanged(nameof(TotalPH));
+            OnPropertyChanged(nameof(TotalCT));
+            OnPropertyChanged(nameof(TotalEN));
         }
 
         // MÉTODOS DE SIGNALR ACTUALIZADOS con mejoras de feedback  
@@ -1308,6 +1345,11 @@ namespace AplicacionDespacho.ViewModels
 
                     OnPropertyChanged(nameof(TotalCajas));
                     OnPropertyChanged(nameof(PesoTotalViaje));
+
+                    OnPropertyChanged(nameof(TotalPC));
+                    OnPropertyChanged(nameof(TotalPH));
+                    OnPropertyChanged(nameof(TotalCT));
+                    OnPropertyChanged(nameof(TotalEN));
                 }
             });
         }
@@ -1447,6 +1489,10 @@ namespace AplicacionDespacho.ViewModels
                     OnPropertyChanged(nameof(TotalCajas));
                     OnPropertyChanged(nameof(PesoTotalViaje));
 
+                    OnPropertyChanged(nameof(TotalPC));
+                    OnPropertyChanged(nameof(TotalPH));
+                    OnPropertyChanged(nameof(TotalCT));
+                    OnPropertyChanged(nameof(TotalEN));
                     _logger.LogInfo("✅ Respuesta procesada exitosamente desde móvil - Device: {DeviceId}", deviceId);
                 }
                 catch (Exception ex)
@@ -1576,6 +1622,25 @@ namespace AplicacionDespacho.ViewModels
                     }
                 }
             });
+        }
+        private async void OnBicolorPackagingTypesRequestedFromMobile(string deviceId)
+        {
+            try
+            {
+                _logger.LogInfo("📱 Solicitud de tipos de embalaje bicolor desde dispositivo: {DeviceId}", deviceId);
+
+                // Obtener lista de embalajes bicolor activos desde la base de datos  
+                var embalajesBicolor = _accesoDatosEmbalajeBicolor.ObtenerEmbalajeBicolorActivos();
+
+                // Enviar al dispositivo móvil específico  
+                await _signalRService.SendBicolorPackagingTypesToMobileAsync(deviceId, embalajesBicolor);
+
+                _logger.LogInfo("✅ Lista de embalajes bicolor enviada al dispositivo: {DeviceId}", deviceId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error enviando tipos de embalaje bicolor: {ErrorMessage}", ex.Message);
+            }
         }
         // NUEVO: Método para manejar ediciones desde móvil  
         private async void OnPalletEditReceivedFromMobile(string palletNumber, object editedData, string deviceId)

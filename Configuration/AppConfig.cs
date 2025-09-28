@@ -35,7 +35,7 @@ namespace AplicacionDespacho.Configuration
             ConfigurationManager.AppSettings["DefaultGuidePrefix"] ?? "T004-";
 
         public static string DefaultResponsible =>
-            ConfigurationManager.AppSettings["DefaultResponsible"] ?? "MIRTHA CASTRO";
+            ConfigurationManager.AppSettings["DefaultResponsible"] ?? "MIRTHA INGA";
 
         public static string DefaultDeparturePoint =>
             ConfigurationManager.AppSettings["DefaultDeparturePoint"] ?? "PIURA";

@@ -106,6 +106,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <TextBlock x:Name="txtTotalPC" FontWeight="Bold" FontSize="12" Margin="0,0,20,0"/>
                     <TextBlock x:Name="txtTotalPH" FontWeight="Bold" FontSize="12"/>
+                    <TextBlock x:Name="txtTotalCT" FontWeight="Bold" FontSize="12" Margin="20,0,0,0"/>
+                    <TextBlock x:Name="txtTotalEN" FontWeight="Bold" FontSize="12" Margin="20,0,0,0"/>
                 </StackPanel>
 
                 <!-- Totales generales existentes -->

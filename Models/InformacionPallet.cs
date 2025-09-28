@@ -36,10 +36,12 @@ namespace AplicacionDespacho.Models
         public int TotalCajasBicolor => EsBicolor ? (NumeroDeCajas + CajasSegundaVariedad) : NumeroDeCajas;
         public decimal PesoTotalBicolor => EsBicolor ? (NumeroDeCajas + CajasSegundaVariedad) * PesoUnitario : PesoTotal;
 
-        // NUEVAS PROPIEDADES PARA CLASIFICACIÓN PC/PH (SOLO DOS CATEGORÍAS)  
+        // NUEVAS PROPIEDADES PARA CLASIFICACIÓN PC/PH/CT (TRES CATEGORÍAS) 
         public string TipoPallet => DeterminarTipoPallet();
         public bool EsPC => TipoPallet == "PC";
         public bool EsPH => TipoPallet == "PH";
+        public bool EsCT => TipoPallet == "CT";
+        public bool EsEN => TipoPallet == "EN";
 
         // Propiedades para reportería bicolor    
         public string VariedadParaReporte => EsBicolor ? $"{Variedad} + {SegundaVariedad}" : Variedad;
@@ -65,8 +67,12 @@ namespace AplicacionDespacho.Models
                 return "PC";
             else if (NumeroPallet.ToUpper().EndsWith("PH") || NumeroPallet.ToUpper().Contains("PH"))
                 return "PH";
+            else if (NumeroPallet.ToUpper().EndsWith("CT") || NumeroPallet.ToUpper().Contains("CT"))
+                return "CT";
+            else if (NumeroPallet.ToUpper().EndsWith("EN") || NumeroPallet.ToUpper().Contains("EN"))
+                return "EN";
             else
-                return "PC"; // Por defecto PC si no se puede determinar  
+                return "PC"; // Por defecto PC si no se puede determinar    
         }
     }
 }

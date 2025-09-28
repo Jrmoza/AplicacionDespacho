@@ -214,7 +214,7 @@
                 </GroupBox>
 
                 <!-- Lista de pallets del viaje con información de peso -->
-                <GroupBox Header="Pallets del Viaje (Máximo 50)" Grid.Row="3" Margin="0,10">
+                <GroupBox Header="Pallets del Viaje" Grid.Row="3" Margin="0,10">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
@@ -280,6 +280,16 @@
 
                     <!-- Resumen de totales -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <!-- Contadores de tipos de pallets -->
+                        <TextBlock Text="PC: " FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalPC}" FontWeight="Bold" Margin="0,0,10,0"/>
+                        <TextBlock Text="PH: " FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalPH}" FontWeight="Bold" Margin="0,0,10,0"/>
+                        <TextBlock Text="CT: " FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalCT}" FontWeight="Bold" Margin="0,0,20,0"/>
+                        <TextBlock Text="EN: " FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TotalEN}" FontWeight="Bold" Margin="0,0,20,0"/>
+                        <!-- Totales generales -->
                         <TextBlock Text="Total Pallets: " FontWeight="Bold"/>
                         <TextBlock Text="{Binding PalletsEscaneados.Count}" FontWeight="Bold" Margin="0,0,20,0"/>
                         <TextBlock Text="Total Cajas: " FontWeight="Bold"/>
