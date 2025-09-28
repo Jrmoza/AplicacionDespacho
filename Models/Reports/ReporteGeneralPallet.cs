@@ -50,7 +50,9 @@ namespace AplicacionDespacho.Models.Reports
         // ✅ PROPIEDADES CALCULADAS PARA CLASIFICACIÓN PC/PH  
         public string TipoPallet => DeterminarTipoPallet();
         public bool EsPC => TipoPallet == "PC";
-        public bool EsPH => TipoPallet == "PH";
+        public bool EsPH => TipoPallet == "PH";  
+        public bool EsCT => TipoPallet == "CT";
+        public bool EsEN => TipoPallet == "EN";
 
         // ✅ PROPIEDADES PARA REPORTERÍA BICOLOR  
         public string VariedadParaReporte => EsBicolor && !string.IsNullOrEmpty(SegundaVariedad) ?
@@ -64,7 +66,9 @@ namespace AplicacionDespacho.Models.Reports
 
         // ✅ PROPIEDADES PARA MOSTRAR DETALLES EN VENTANAS  
         public string TotalCajasDisplay => EsBicolor && CajasSegundaVariedad.HasValue ?
-            $"{CajasParaReporte} ({NumeroDeCajas}+{CajasSegundaVariedad})" :
+            $"{CajasParaReporte}" :
+            //MUESTRA EN TOTAL DE CAJAS DE AMBAS VARIEDADES EN EL REPORTE
+           // $"{CajasParaReporte} ({NumeroDeCajas}+{CajasSegundaVariedad})" :
             NumeroDeCajas.ToString();
 
         // ✅ MÉTODO PRIVADO PARA DETERMINAR TIPO DE PALLET  
@@ -74,8 +78,13 @@ namespace AplicacionDespacho.Models.Reports
                 return "PC";
             else if (NumeroPallet.ToUpper().EndsWith("PH") || NumeroPallet.ToUpper().Contains("PH"))
                 return "PH";
+            else if (NumeroPallet.ToUpper().EndsWith("CT") || NumeroPallet.ToUpper().Contains("CT"))
+                return "CT";
+            else if (NumeroPallet.ToUpper().EndsWith("EN") || NumeroPallet.ToUpper().Contains("EN"))
+                return "EN";
             else
                 return "PC"; // Por defecto PC si no se puede determinar  
         }
     }
+
 }

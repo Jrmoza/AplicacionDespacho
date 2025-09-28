@@ -175,6 +175,7 @@ namespace AplicacionDespacho.Services.Export
             worksheet.Cells[row, 1].Style.Font.Bold = true;
             row++;
 
+            // Totales generales  
             worksheet.Cells[row, 1].Value = "Total Pallets:";
             worksheet.Cells[row, 2].Value = pallets.Count;
             row++;
@@ -186,29 +187,90 @@ namespace AplicacionDespacho.Services.Export
             worksheet.Cells[row, 1].Value = "Peso Total (kg):";
             worksheet.Cells[row, 2].Value = pallets.Sum(p => p.PesoTotal);
             worksheet.Cells[row, 2].Style.Numberformat.Format = "0.000";
-            // NUEVO: Contadores PC/PH  
-            row++;
-            worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
-            worksheet.Cells[row, 1].Style.Font.Bold = true;
             row++;
 
-            var totalPC = pallets.Count(p => p.EsPC);
-            var totalPH = pallets.Count(p => p.EsPH);
+            // ESTRATEGIA CONDICIONAL: Detectar presencia de CT/EN  
+            bool tieneCTEN = pallets.Any(p => p.EsCT || p.EsEN);
 
-            worksheet.Cells[row, 1].Value = "Pallets PC:";
-            worksheet.Cells[row, 2].Value = totalPC;
-            row++;
-
-            worksheet.Cells[row, 1].Value = "Pallets PH:";
-            worksheet.Cells[row, 2].Value = totalPH;
-            row++;
-
-            // Formatear sección PC/PH  
-            using (var range = worksheet.Cells[row - 3, 1, row - 1, 2])
+            if (!tieneCTEN)
             {
-                range.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+                // CASO 1: Solo PC/PH - Clasificación simple  
+                worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
+                worksheet.Cells[row, 1].Style.Font.Bold = true;
+                row++;
+
+                var totalPC = pallets.Count(p => p.EsPC);
+                var totalPH = pallets.Count(p => p.EsPH);
+
+                worksheet.Cells[row, 1].Value = "Pallets PC:";
+                worksheet.Cells[row, 2].Value = totalPC;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets PH:";
+                worksheet.Cells[row, 2].Value = totalPH;
+                row++;
+
+                // Formatear sección PC/PH  
+                using (var range = worksheet.Cells[row - 3, 1, row - 1, 2])
+                {
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
+                }
             }
+            else
+            {
+                // CASO 2: Hay CT/EN - Clasificación completa separada  
+
+                // Sección PC/PH  
+                worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
+                worksheet.Cells[row, 1].Style.Font.Bold = true;
+                row++;
+
+                var totalPC = pallets.Count(p => p.EsPC);
+                var totalPH = pallets.Count(p => p.EsPH);
+
+                worksheet.Cells[row, 1].Value = "Pallets PC:";
+                worksheet.Cells[row, 2].Value = totalPC;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets PH:";
+                worksheet.Cells[row, 2].Value = totalPH;
+                row++;
+
+                // Formatear sección PC/PH (verde claro)  
+                using (var range = worksheet.Cells[row - 3, 1, row - 1, 2])
+                {
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
+                }
+
+                // Espacio separador  
+                row++;
+
+                // Sección CT/EN  
+                worksheet.Cells[row, 1].Value = "CLASIFICACIÓN CT/EN";
+                worksheet.Cells[row, 1].Style.Font.Bold = true;
+                row++;
+
+                var totalCT = pallets.Count(p => p.EsCT);
+                var totalEN = pallets.Count(p => p.EsEN);
+
+                worksheet.Cells[row, 1].Value = "Pallets CT:";
+                worksheet.Cells[row, 2].Value = totalCT;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets EN:";
+                worksheet.Cells[row, 2].Value = totalEN;
+                row++;
+
+                // Formatear sección CT/EN (azul claro)  
+                using (var range = worksheet.Cells[row - 3, 1, row - 1, 2])
+                {
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+                }
+            }
+
             return row + 1;
         }
 

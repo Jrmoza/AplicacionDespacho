@@ -1,12 +1,13 @@
 ﻿// ReporteConsolidadoWindow.xaml.cs  
+using AplicacionDespacho.Models.Export;
 using AplicacionDespacho.Models.Reports;
 using AplicacionDespacho.Services.Export;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace AplicacionDespacho
 {
@@ -27,15 +28,15 @@ namespace AplicacionDespacho
 
         private void CargarDatos()
         {
-            // Cargar información del período  
+            // Cargar información del período    
             txtFechaDesde.Text = _fechaDesde.ToString("dd/MM/yyyy");
             txtFechaHasta.Text = _fechaHasta.ToString("dd/MM/yyyy");
             txtTotalPallets.Text = _pallets.Count.ToString();
 
-            // Cargar pallets en el DataGrid principal  
+            // Cargar pallets en el DataGrid principal    
             dgPallets.ItemsSource = _pallets;
 
-            // Generar resumen por variedad  
+            // Generar resumen por variedad    
             var resumenVariedad = _pallets
                 .GroupBy(p => p.VariedadParaReporte)
                 .Select(g => new
@@ -45,12 +46,12 @@ namespace AplicacionDespacho
                     TotalCajas = g.Sum(p => p.CajasParaReporte),
                     TotalKilos = g.Sum(p => p.PesoTotal)
                 })
-                            .OrderBy(r => r.Variedad)
+                .OrderBy(r => r.Variedad)
                 .ToList();
 
             dgResumenVariedad.ItemsSource = resumenVariedad;
 
-            // Generar resumen por empresa    
+            // Generar resumen por empresa      
             var resumenEmpresa = _pallets
                 .GroupBy(p => p.NombreEmpresa)
                 .Select(g => new
@@ -66,17 +67,36 @@ namespace AplicacionDespacho
 
             dgResumenEmpresa.ItemsSource = resumenEmpresa;
 
-            // Calcular totales generales  
+            // Calcular totales generales    
             txtTotalPalletsGeneral.Text = _pallets.Count.ToString();
             txtTotalCajasGeneral.Text = _pallets.Sum(p => p.CajasParaReporte).ToString();
             txtTotalKilosGeneral.Text = _pallets.Sum(p => p.PesoTotal).ToString("F3");
-            // NUEVO: Contadores simples PC/PH (solo números exactos)  
+
+            // NUEVO: Contadores completos para los cuatro tipos de pallets  
             var totalPC = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PC");
             var totalPH = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PH");
+            var totalCT = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "CT");
+            var totalEN = _pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "EN");
 
-            // Mostrar en controles de texto (necesitarás agregar estos al XAML)  
-             txtTotalPC.Text = $"{totalPC}";  
-             txtTotalPH.Text = $"{totalPH}";
+            // ESTRATEGIA CONDICIONAL: Detectar presencia de pallets CT/EN  
+            bool tieneCTEN = totalCT > 0 || totalEN > 0;
+
+            // Mostrar contadores PC/PH (siempre visibles)  
+            txtTotalPC.Text = $"{totalPC}";
+            txtTotalPH.Text = $"{totalPH}";
+
+            // Mostrar panel CT/EN solo si existen estos tipos de pallets  
+            if (tieneCTEN)
+            {
+                panelCTEN.Visibility = Visibility.Visible;
+                txtTotalCT.Text = $"{totalCT}";
+                txtTotalEN.Text = $"{totalEN}";
+            }
+            else
+            {
+                panelCTEN.Visibility = Visibility.Collapsed;
+            }
+
         }
 
         private async void btnExportar_Click(object sender, RoutedEventArgs e)
@@ -152,8 +172,14 @@ namespace AplicacionDespacho
                 return "PC";
             else if (numeroPallet.ToUpper().EndsWith("PH") || numeroPallet.ToUpper().Contains("PH"))
                 return "PH";
+            else if (numeroPallet.ToUpper().EndsWith("CT") || numeroPallet.ToUpper().Contains("CT"))
+                return "CT";
+            else if (numeroPallet.ToUpper().EndsWith("EN") || numeroPallet.ToUpper().Contains("EN"))
+                return "EN";
             else
-                return "PC"; // Por defecto PC si no se puede determinar  
+                return "PC"; // Por defecto PC si no se puede determinar    
         }
+
+
     }
 }

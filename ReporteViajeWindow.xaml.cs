@@ -27,7 +27,7 @@ namespace AplicacionDespacho
 
         private void CargarDatos()
         {
-            // Cargar información del viaje    
+            // Cargar información del viaje      
             txtFecha.Text = _viaje.Fecha.ToString("dd/MM/yyyy");
             txtNumeroViaje.Text = _viaje.NumeroViaje.ToString();
             txtNumeroGuia.Text = _viaje.NumeroGuia;
@@ -38,20 +38,31 @@ namespace AplicacionDespacho
             txtPuntoPartida.Text = _viaje.PuntoPartida ?? "N/A";
             txtPuntoLlegada.Text = _viaje.PuntoLlegada ?? "N/A";
 
-            // Cargar pallets    
+            // Cargar pallets      
             dgPallets.ItemsSource = _pallets;
 
-            // Calcular totales    
+            // Calcular totales generales  
             txtTotalPallets.Text = _pallets.Count.ToString();
             txtTotalCajas.Text = _pallets.Sum(p => p.CajasParaReporte).ToString();
             txtPesoTotal.Text = _pallets.Sum(p => p.PesoTotal).ToString("F3");
-            // NUEVO: Contadores simples PC/PH para la ventana  
+
+            // Calcular contadores por tipo (PC, PH, CT, EN)  
             var totalPC = _pallets.Count(p => p.EsPC);
             var totalPH = _pallets.Count(p => p.EsPH);
+            var totalCT = _pallets.Count(p => p.EsCT);
+            var totalEN = _pallets.Count(p => p.EsEN);
 
-            // Mostrar en controles de texto (necesitarás agregar estos al XAML)  
+            // Mostrar contadores PC/PH (siempre visibles)  
             txtTotalPC.Text = $"{totalPC}";
             txtTotalPH.Text = $"{totalPH}";
+
+            // Mostrar contadores CT/EN  
+            txtTotalCT.Text = $"{totalCT}";
+            txtTotalEN.Text = $"{totalEN}";
+
+            // Mostrar panel CT/EN solo si hay pallets de estos tipos  
+            bool tieneCTEN = totalCT > 0 || totalEN > 0;
+            panelCTEN.Visibility = tieneCTEN ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void btnExportar_Click(object sender, RoutedEventArgs e)

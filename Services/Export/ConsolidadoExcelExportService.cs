@@ -272,47 +272,90 @@ namespace AplicacionDespacho.Services.Export
             worksheet.Cells[row, 1].Value = "Total Kilos:";
             worksheet.Cells[row, 2].Value = pallets.Sum(p => p.PesoTotal);
             worksheet.Cells[row, 2].Style.Numberformat.Format = "0.000";
-            // NUEVO: Contadores simples PC/PH  
-            row += 2;
-            worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
-            worksheet.Cells[row, 1].Style.Font.Bold = true;
-            row++;
 
-            var totalPC = pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PC");
-            var totalPH = pallets.Count(p => DeterminarTipoPallet(p.NumeroPallet) == "PH");
+            // NUEVO: Detección condicional CT/EN (igual que en ImpresionDespachoWindow)  
+            bool tieneCTEN = pallets.Any(p => p.EsCT || p.EsEN);
 
-            worksheet.Cells[row, 1].Value = "Pallets PC (Completos):";
-            worksheet.Cells[row, 2].Value = totalPC;
-            row++;
-
-            worksheet.Cells[row, 1].Value = "Pallets PH (Puchos):";
-            worksheet.Cells[row, 2].Value = totalPH;
-
-            // Formatear sección PC/PH  
-            using (var range = worksheet.Cells[row - 1, 1, row, 2])
+            if (!tieneCTEN)
             {
-                range.Style.Font.Bold = true;
-                range.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightCyan);
+                // CASO 1: Solo PC/PH - Mantener formato original  
+                row += 2;
+                worksheet.Cells[row, 1].Value = "CLASIFICACIÓN PC/PH";
+                worksheet.Cells[row, 1].Style.Font.Bold = true;
+                row++;
+
+                var totalPC = pallets.Count(p => p.EsPC);
+                var totalPH = pallets.Count(p => p.EsPH);
+
+                worksheet.Cells[row, 1].Value = "Pallets PC (Completos):";
+                worksheet.Cells[row, 2].Value = totalPC;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets PH (Puchos):";
+                worksheet.Cells[row, 2].Value = totalPH;
+
+                // Formatear sección PC/PH  
+                using (var range = worksheet.Cells[row - 1, 1, row, 2])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightCyan);
+                }
+            }
+            else
+            {
+                // CASO 2: Hay CT/EN - Implementar clasificación completa  
+                row += 2;
+                worksheet.Cells[row, 1].Value = "CLASIFICACIÓN COMPLETA";
+                worksheet.Cells[row, 1].Style.Font.Bold = true;
+                row++;
+
+                var totalPC = pallets.Count(p => p.EsPC);
+                var totalPH = pallets.Count(p => p.EsPH);
+                var totalCT = pallets.Count(p => p.EsCT);
+                var totalEN = pallets.Count(p => p.EsEN);
+
+                // Sección PC/PH  
+                worksheet.Cells[row, 1].Value = "Pallets PC (Completos):";
+                worksheet.Cells[row, 2].Value = totalPC;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets PH (Puchos):";
+                worksheet.Cells[row, 2].Value = totalPH;
+                row++;
+
+                // Sección CT/EN  
+                worksheet.Cells[row, 1].Value = "Pallets CT (Contra Muestra):";
+                worksheet.Cells[row, 2].Value = totalCT;
+                row++;
+
+                worksheet.Cells[row, 1].Value = "Pallets EN (Ensayo):";
+                worksheet.Cells[row, 2].Value = totalEN;
+
+                // Formatear sección PC/PH (verde)  
+                using (var range = worksheet.Cells[row - 3, 1, row - 2, 2])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGreen);
+                }
+
+                // Formatear sección CT/EN (azul)  
+                using (var range = worksheet.Cells[row - 1, 1, row, 2])
+                {
+                    range.Style.Font.Bold = true;
+                    range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+                }
             }
 
-            // Formatear totales  
-            using (var range = worksheet.Cells[row - 2, 1, row, 2])
+            // Formatear totales generales (amarillo)  
+            using (var range = worksheet.Cells[startRow, 1, startRow + 3, 2])
             {
                 range.Style.Font.Bold = true;
                 range.Style.Fill.PatternType = ExcelFillStyle.Solid;
                 range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
             }
-
-        }
-        private string DeterminarTipoPallet(string numeroPallet)
-        {
-            if (numeroPallet.ToUpper().EndsWith("PC") || numeroPallet.ToUpper().Contains("PC"))
-                return "PC";
-            else if (numeroPallet.ToUpper().EndsWith("PH") || numeroPallet.ToUpper().Contains("PH"))
-                return "PH";
-            else
-                return "PC"; // Por defecto PC si no se puede determinar  
         }
     }
 }

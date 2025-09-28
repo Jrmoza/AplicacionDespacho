@@ -88,20 +88,34 @@
 
         <!-- Resumen de totales -->
         <GroupBox Grid.Row="3" Header="Resumen de Totales" Margin="0,0,0,20">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10">
-                <TextBlock Text="Total Pallets: " FontWeight="Bold"/>
-                <TextBlock x:Name="txtTotalPallets" FontWeight="Bold" Margin="0,0,20,0"/>
-                <TextBlock Text="Total Cajas: " FontWeight="Bold"/>
-                <TextBlock x:Name="txtTotalCajas" FontWeight="Bold" Margin="0,0,20,0"/>
-                <TextBlock Text="Peso Total: " FontWeight="Bold"/>
-                <TextBlock x:Name="txtPesoTotal" FontWeight="Bold"/>
-                <TextBlock Text=" kg" FontWeight="Bold"/>
-                <!-- NUEVO: Contadores PC/PH -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="10,0,10,10">
+            <!-- REEMPLAZAR LÍNEAS 95-111 CON ESTA ESTRUCTURA CONDICIONAL -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="10">
+                <!-- Totales generales (siempre visibles) -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <TextBlock Text="Total Pallets: " FontWeight="Bold"/>
+                    <TextBlock x:Name="txtTotalPallets" FontWeight="Bold" Margin="0,0,20,0"/>
+                    <TextBlock Text="Total Cajas: " FontWeight="Bold"/>
+                    <TextBlock x:Name="txtTotalCajas" FontWeight="Bold" Margin="0,0,20,0"/>
+                    <TextBlock Text="Peso Total: " FontWeight="Bold"/>
+                    <TextBlock x:Name="txtPesoTotal" FontWeight="Bold"/>
+                    <TextBlock Text=" kg" FontWeight="Bold"/>
+                </StackPanel>
+
+                <!-- Contadores PC/PH (siempre visibles) -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,5">
                     <TextBlock Text="PC: " FontWeight="Bold" Foreground="Green"/>
                     <TextBlock x:Name="txtTotalPC" FontWeight="Bold" Foreground="Green" Margin="0,0,20,0"/>
                     <TextBlock Text="PH: " FontWeight="Bold" Foreground="Orange"/>
                     <TextBlock x:Name="txtTotalPH" FontWeight="Bold" Foreground="Orange"/>
+                </StackPanel>
+
+                <!-- Contadores CT/EN (visibles solo cuando hay pallets CT/EN) -->
+                <StackPanel x:Name="panelCTEN" Orientation="Horizontal" HorizontalAlignment="Center"   
+                Margin="0,0,0,5" Visibility="Collapsed">
+                    <TextBlock Text="CT: " FontWeight="Bold" Foreground="Blue"/>
+                    <TextBlock x:Name="txtTotalCT" FontWeight="Bold" Foreground="Blue" Margin="0,0,20,0"/>
+                    <TextBlock Text="EN: " FontWeight="Bold" Foreground="Purple"/>
+                    <TextBlock x:Name="txtTotalEN" FontWeight="Bold" Foreground="Purple"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>

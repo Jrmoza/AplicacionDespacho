@@ -597,6 +597,7 @@ namespace AplicacionDespacho.Services.DataAccess
             return pallets;
         }
 
+
         public List<ReporteGeneralPallet> ObtenerPalletsEnviadosPorFechas(DateTime fechaDesde, DateTime fechaHasta, int? empresaId = null, int? conductorId = null)
         {
             var pallets = new List<ReporteGeneralPallet>();
@@ -701,6 +702,7 @@ namespace AplicacionDespacho.Services.DataAccess
                                 pallet.EsBicolor = true;
                             }
 
+
                             pallets.Add(pallet);
                         }
                         lector.Close();
@@ -715,7 +717,7 @@ namespace AplicacionDespacho.Services.DataAccess
 
             return pallets;
         }
- 
+
         public List<PesoEmbalaje> ObtenerTodosPesosEmbalaje()
         {
             var pesos = new List<PesoEmbalaje>();
