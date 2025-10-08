@@ -257,15 +257,15 @@ namespace AplicacionDespacho.ViewModels
                 {
                     pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
-                    // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC      
+                    // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC  
                     bool esPalletCompleto = pallet.EsPC;
 
                     if (esPalletCompleto && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
                     {
-                        // Para pallets PC, usar el total de ficha técnica      
+                        // Para pallets PC, usar el total de ficha técnica  
                         if (pallet.EsBicolor)
                         {
-                            // Para PC bicolor, el peso se basa en el total de ambas variedades      
+                            // Para PC bicolor, el peso se basa en el total de ambas variedades  
                             int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
                             pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
 
@@ -274,28 +274,68 @@ namespace AplicacionDespacho.ViewModels
                         }
                         else
                         {
-                            // NUEVA VALIDACIÓN: Verificar si el número de cajas manual difiere de ficha técnica    
+                            // NUEVA VALIDACIÓN: Verificar si el número de cajas manual difiere de ficha técnica  
                             int cajasManual = pallet.NumeroDeCajas;
                             int cajasFichaTecnica = pesoEmbalaje.TotalCajasFichaTecnica.Value;
 
                             if (cajasManual != cajasFichaTecnica)
                             {
-                                // Mostrar mensaje informativo sobre la discrepancia    
-                                MostrarMensajeValidacionPC(pallet.NumeroPallet, cajasManual, cajasFichaTecnica);
+                                // Mostrar mensaje informativo sobre la discrepancia  
+                                string mensaje = $"⚠️ VALIDACIÓN PALLET COMPLETO (PC)\\n\\n" +
+                                               $"Pallet: {pallet.NumeroPallet}\\n" +
+                                               $"Cajas ingresadas manualmente: {cajasManual}\\n" +
+                                               $"Cajas según ficha técnica: {cajasFichaTecnica}\\n\\n" +
+                                               $"Para pallets completos (PC) monocolor, el número de cajas debe coincidir exactamente con la ficha técnica.\\n" +
+                                               $"Se usará el valor de ficha técnica para mantener la integridad del pallet completo.";
+
+                                // NUEVO: Enviar mensaje tanto a desktop como a móvil  
+                                if (!string.IsNullOrEmpty(_currentDeviceProcessing))
+                                {
+                                    // Si viene desde móvil, enviar mensaje al dispositivo móvil  
+                                    _ = Task.Run(async () =>
+                                    {
+                                        try
+                                        {
+                                            await _signalRService.SendPalletInfoToMobileAsync(
+                                                ViajeActivo?.ViajeId.ToString() ?? "0",
+                                                mensaje,
+                                                _currentDeviceProcessing);
+
+                                            _logger.LogInfo("📱 Mensaje de validación PC enviado al móvil: {DeviceId}", _currentDeviceProcessing);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            _logger.LogError(ex, "Error enviando mensaje de validación PC al móvil");
+                                        }
+                                    });
+                                }
+                                else
+                                {
+                                    // Si es desde desktop, mostrar MessageBox  
+                                    MessageBox.Show(mensaje, "Validación Pallet Completo",
+                                                  MessageBoxButton.OK, MessageBoxImage.Information);
+                                }
+
+                                _logger.LogWarning("Discrepancia en pallet PC {NumeroPallet}: Manual={CajasManual}, FichaTecnica={CajasFichaTecnica}",
+                                                 pallet.NumeroPallet, cajasManual, cajasFichaTecnica);
                             }
 
-                            // Para PC normal, usar ficha técnica (funcionalidad original preservada)    
+                            // Para PC normal, usar ficha técnica (funcionalidad original preservada)  
                             decimal pesoCalculadoCorrect = cajasFichaTecnica * pesoEmbalaje.PesoUnitario;
 
                             // NUEVA VALIDACIÓN VISUAL: Verificar inconsistencia en peso total  
                             if (Math.Abs(pallet.PesoTotal - pesoCalculadoCorrect) > 0.001m)
                             {
                                 // Marcar pallet con inconsistencia visual  
-                                MarcarPalletConInconsistencia(pallet, pesoCalculadoCorrect);
+                                pallet.TienePesoInconsistente = true;
 
                                 _logger.LogWarning("Inconsistencia detectada en pallet PC {NumeroPallet}: " +
                                                  "Peso actual {PesoActual} vs esperado {PesoEsperado}",
                                                  pallet.NumeroPallet, pallet.PesoTotal, pesoCalculadoCorrect);
+                            }
+                            else
+                            {
+                                pallet.TienePesoInconsistente = false;
                             }
 
                             pallet.PesoTotal = pesoCalculadoCorrect;
@@ -306,10 +346,10 @@ namespace AplicacionDespacho.ViewModels
                     }
                     else
                     {
-                        // Para pallets normales (no PC) - funcionalidad original preservada    
+                        // Para pallets normales (no PC) - funcionalidad original preservada  
                         if (pallet.EsBicolor)
                         {
-                            // Para bicolor, sumar ambas variedades      
+                            // Para bicolor, sumar ambas variedades  
                             int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
                             pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
 
@@ -318,7 +358,7 @@ namespace AplicacionDespacho.ViewModels
                         }
                         else
                         {
-                            // Para pallet normal, usar solo primera variedad      
+                            // Para pallet normal, usar solo primera variedad  
                             pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
 
                             _logger.LogInfo("Peso recalculado para pallet normal {NumeroPallet}: {NumeroCajas} cajas = {PesoTotal} kg",
@@ -355,11 +395,11 @@ namespace AplicacionDespacho.ViewModels
         private void MostrarMensajeValidacionPC(string numeroPallet, int cajasManual, int cajasFichaTecnica)
         {
             string mensaje = $"VALIDACIÓN PALLET COMPLETO (PC)" +
-                            $"Pallet: {numeroPallet}" +
-                            $"Cajas ingresadas manualmente: {cajasManual}" +
-                            $"Cajas según ficha técnica: {cajasFichaTecnica}" +
-                            $"Para pallets completos (PC) monocolor, el número de cajas debe coincidir exactamente con la ficha técnica." +
-                            $"Se usará el valor de ficha técnica para mantener la integridad del pallet completo.";
+                            $"Pallet: {numeroPallet} " +
+                            $" Cajas ingresadas manualmente: {cajasManual} " +
+                            $" Cajas según ficha técnica: {cajasFichaTecnica} " +
+                            $" Para pallets completos (PC) monocolor, el número de cajas debe coincidir exactamente con la ficha técnica. " +
+                            $" Se usará el valor de ficha técnica para mantener la integridad del pallet completo. ";
 
             MessageBox.Show(mensaje, "Validación Pallet Completo",
                            MessageBoxButton.OK, MessageBoxImage.Information);

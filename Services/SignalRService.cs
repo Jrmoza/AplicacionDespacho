@@ -390,7 +390,24 @@ namespace AplicacionDespacho.Services
                 }
             }
         }
-
+        // Agregar en Services/SignalRService.cs después del método SendPalletErrorToMobileAsync  
+        public async Task SendPalletInfoToMobileAsync(string tripId, string infoMessage, string deviceId)
+        {
+            if (_connection?.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await _connection.InvokeAsync("SendPalletInfoToMobile", tripId, infoMessage, deviceId);
+                    _logger.LogInfo("ℹ️ Mensaje informativo enviado al móvil - Trip: {TripId}, Device: {DeviceId}",
+                                   tripId, deviceId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Error enviando mensaje informativo al móvil: {ErrorMessage}", ex.Message);
+                    throw;
+                }
+            }
+        }
         // NUEVO: Método para enviar información del viaje activo al móvil    
         public async Task SendActiveTripInfoToMobileAsync(string deviceId, object tripData, object palletsData)
         {
