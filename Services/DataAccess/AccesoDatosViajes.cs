@@ -864,7 +864,11 @@ namespace AplicacionDespacho.Services.DataAccess
         public List<Vehiculo> ObtenerVehiculosPorEmpresa(int empresaId)
         {
             var vehiculos = new List<Vehiculo>();
-            string consulta = "SELECT VehiculoId, Placa, EmpresaId FROM VEHICULOS WHERE EmpresaId = @EmpresaId";
+            string consulta = @"  
+        SELECT v.VehiculoId, v.Placa, v.EmpresaId, e.NombreEmpresa, e.RUC  
+        FROM VEHICULOS v   
+        INNER JOIN EMPRESAS_TRANSPORTE e ON v.EmpresaId = e.EmpresaId   
+        WHERE v.EmpresaId = @EmpresaId";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
@@ -881,7 +885,8 @@ namespace AplicacionDespacho.Services.DataAccess
                             {
                                 VehiculoId = lector.GetInt32(lector.GetOrdinal("VehiculoId")),
                                 Placa = lector.GetString(lector.GetOrdinal("Placa")),
-                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId"))
+                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId")),
+                                NombreEmpresa = lector.GetString(lector.GetOrdinal("NombreEmpresa"))
                             });
                         }
                         lector.Close();
@@ -898,7 +903,11 @@ namespace AplicacionDespacho.Services.DataAccess
         public List<Conductor> ObtenerConductoresPorEmpresa(int empresaId)
         {
             var conductores = new List<Conductor>();
-            string consulta = "SELECT ConductorId, NombreConductor, EmpresaId FROM CONDUCTORES WHERE EmpresaId = @EmpresaId";
+            string consulta = @"  
+        SELECT c.ConductorId, c.NombreConductor, c.EmpresaId, e.NombreEmpresa, e.RUC  
+        FROM CONDUCTORES c   
+        INNER JOIN EMPRESAS_TRANSPORTE e ON c.EmpresaId = e.EmpresaId   
+        WHERE c.EmpresaId = @EmpresaId";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
@@ -915,7 +924,8 @@ namespace AplicacionDespacho.Services.DataAccess
                             {
                                 ConductorId = lector.GetInt32(lector.GetOrdinal("ConductorId")),
                                 NombreConductor = lector.GetString(lector.GetOrdinal("NombreConductor")),
-                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId"))
+                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId")),
+                                NombreEmpresa = lector.GetString(lector.GetOrdinal("NombreEmpresa"))
                             });
                         }
                         lector.Close();
@@ -928,12 +938,92 @@ namespace AplicacionDespacho.Services.DataAccess
             }
             return conductores;
         }
-
-        public void GuardarEmpresa(EmpresaTransporte nuevaEmpresa)
+        public List<Conductor> ObtenerTodosConductores()
         {
+            var conductores = new List<Conductor>();
             string consulta = @"  
-                INSERT INTO EMPRESAS_TRANSPORTE (NombreEmpresa, RUC)  
-                VALUES (@NombreEmpresa, @RUC);";
+        SELECT c.ConductorId, c.NombreConductor, c.EmpresaId, e.NombreEmpresa, e.RUC  
+        FROM CONDUCTORES c   
+        INNER JOIN EMPRESAS_TRANSPORTE e ON c.EmpresaId = e.EmpresaId   
+        ORDER BY e.NombreEmpresa, c.NombreConductor";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    try
+                    {
+                        conexion.Open();
+                        SqlDataReader lector = comando.ExecuteReader();
+                        while (lector.Read())
+                        {
+                            conductores.Add(new Conductor
+                            {
+                                ConductorId = lector.GetInt32(lector.GetOrdinal("ConductorId")),
+                                NombreConductor = lector.GetString(lector.GetOrdinal("NombreConductor")),
+                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId")),
+                                NombreEmpresa = lector.GetString(lector.GetOrdinal("NombreEmpresa"))
+                            });
+                        }
+                        lector.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al obtener todos los conductores: {ex.Message}");
+                    }
+                }
+            }
+            return conductores;
+        }
+
+        public List<Vehiculo> ObtenerTodosVehiculos()
+        {
+            var vehiculos = new List<Vehiculo>();
+            string consulta = @"  
+        SELECT v.VehiculoId, v.Placa, v.EmpresaId, e.NombreEmpresa, e.RUC  
+        FROM VEHICULOS v   
+        INNER JOIN EMPRESAS_TRANSPORTE e ON v.EmpresaId = e.EmpresaId   
+        ORDER BY e.NombreEmpresa, v.Placa";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    try
+                    {
+                        conexion.Open();
+                        SqlDataReader lector = comando.ExecuteReader();
+                        while (lector.Read())
+                        {
+                            vehiculos.Add(new Vehiculo
+                            {
+                                VehiculoId = lector.GetInt32(lector.GetOrdinal("VehiculoId")),
+                                Placa = lector.GetString(lector.GetOrdinal("Placa")),
+                                EmpresaId = lector.GetInt32(lector.GetOrdinal("EmpresaId")),
+                                NombreEmpresa = lector.GetString(lector.GetOrdinal("NombreEmpresa"))
+                            });
+                        }
+                        lector.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al obtener todos los vehículos: {ex.Message}");
+                    }
+                }
+            }
+            return vehiculos;
+        }
+        public bool GuardarEmpresa(EmpresaTransporte nuevaEmpresa)
+        {
+            // Validar RUC duplicado antes de insertar  
+            if (ExisteRUCEmpresa(nuevaEmpresa.RUC))
+            {
+                throw new InvalidOperationException($"Ya existe una empresa con el RUC: {nuevaEmpresa.RUC}");
+            }
+
+            string consulta = @"    
+        INSERT INTO EMPRESAS_TRANSPORTE (NombreEmpresa, RUC)    
+        VALUES (@NombreEmpresa, @RUC);";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
@@ -946,20 +1036,28 @@ namespace AplicacionDespacho.Services.DataAccess
                     {
                         conexion.Open();
                         comando.ExecuteNonQuery();
+                        return true;
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error al guardar la empresa: {ex.Message}");
+                        return false;
                     }
                 }
             }
         }
 
-        public void GuardarConductor(Conductor nuevoConductor)
+        public bool GuardarConductor(Conductor nuevoConductor)
         {
-            string consulta = @"  
-                INSERT INTO CONDUCTORES (NombreConductor, EmpresaId)  
-                VALUES (@NombreConductor, @EmpresaId);";
+            // Validar nombre duplicado en la misma empresa antes de insertar  
+            if (ExisteNombreConductorEnEmpresa(nuevoConductor.NombreConductor, nuevoConductor.EmpresaId))
+            {
+                return false; // Indicar que no se pudo guardar por duplicado  
+            }
+
+            string consulta = @"    
+        INSERT INTO CONDUCTORES (NombreConductor, EmpresaId)    
+        VALUES (@NombreConductor, @EmpresaId);";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
@@ -972,20 +1070,63 @@ namespace AplicacionDespacho.Services.DataAccess
                     {
                         conexion.Open();
                         comando.ExecuteNonQuery();
+                        return true; // Éxito  
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error al guardar el conductor: {ex.Message}");
+                        return false; // Error en la inserción  
+                    }
+                }
+            }
+        }
+        public bool ExisteNombreConductorEnEmpresa(string nombreConductor, int empresaId, int? conductorIdExcluir = null)
+        {
+            string consulta = "SELECT COUNT(*) FROM CONDUCTORES WHERE NombreConductor = @NombreConductor AND EmpresaId = @EmpresaId";
+
+            if (conductorIdExcluir.HasValue)
+            {
+                consulta += " AND ConductorId != @ConductorIdExcluir";
+            }
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@NombreConductor", nombreConductor);
+                    comando.Parameters.AddWithValue("@EmpresaId", empresaId);
+
+                    if (conductorIdExcluir.HasValue)
+                    {
+                        comando.Parameters.AddWithValue("@ConductorIdExcluir", conductorIdExcluir.Value);
+                    }
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar conductor duplicado: {ex.Message}");
+                        return true; // Por seguridad, asumir que existe  
                     }
                 }
             }
         }
 
-        public void GuardarVehiculo(Vehiculo nuevoVehiculo)
+        public bool GuardarVehiculo(Vehiculo nuevoVehiculo)
         {
-            string consulta = @"  
-                INSERT INTO VEHICULOS (Placa, EmpresaId)  
-                VALUES (@Placa, @EmpresaId);";
+            // Validar placa duplicada antes de insertar  
+            if (ExistePlacaVehiculo(nuevoVehiculo.Placa))
+            {
+                return false; // Indicar que no se pudo guardar por duplicado  
+            }
+
+            string consulta = @"    
+        INSERT INTO VEHICULOS (Placa, EmpresaId)    
+        VALUES (@Placa, @EmpresaId);";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
@@ -998,10 +1139,12 @@ namespace AplicacionDespacho.Services.DataAccess
                     {
                         conexion.Open();
                         comando.ExecuteNonQuery();
+                        return true; // Éxito  
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Error al guardar el vehículo: {ex.Message}");
+                        return false; // Error en la inserción  
                     }
                 }
             }
@@ -1432,5 +1575,406 @@ namespace AplicacionDespacho.Services.DataAccess
 
             return viajesEnUso;
         }
+        public bool ActualizarEmpresa(EmpresaTransporte empresa)
+        {
+            string consulta = @"  
+        UPDATE EMPRESAS_TRANSPORTE   
+        SET NombreEmpresa = @NombreEmpresa, RUC = @RUC  
+        WHERE EmpresaId = @EmpresaId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@EmpresaId", empresa.EmpresaId);
+                    comando.Parameters.AddWithValue("@NombreEmpresa", empresa.NombreEmpresa);
+                    comando.Parameters.AddWithValue("@RUC", empresa.RUC);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al actualizar empresa: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool ActualizarConductor(Conductor conductor)
+        {
+            string consulta = @"  
+        UPDATE CONDUCTORES   
+        SET NombreConductor = @NombreConductor, EmpresaId = @EmpresaId  
+        WHERE ConductorId = @ConductorId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@ConductorId", conductor.ConductorId);
+                    comando.Parameters.AddWithValue("@NombreConductor", conductor.NombreConductor);
+                    comando.Parameters.AddWithValue("@EmpresaId", conductor.EmpresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al actualizar conductor: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool ActualizarVehiculo(Vehiculo vehiculo)
+        {
+            string consulta = @"  
+        UPDATE VEHICULOS   
+        SET Placa = @Placa, EmpresaId = @EmpresaId  
+        WHERE VehiculoId = @VehiculoId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@VehiculoId", vehiculo.VehiculoId);
+                    comando.Parameters.AddWithValue("@Placa", vehiculo.Placa);
+                    comando.Parameters.AddWithValue("@EmpresaId", vehiculo.EmpresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al actualizar vehículo: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+        public bool EliminarEmpresa(int empresaId)
+        {
+            // Verificar si tiene dependencias  
+            if (TieneVehiculosAsociados(empresaId) || TieneConductoresAsociados(empresaId))
+            {
+                return false; // No se puede eliminar si tiene dependencias  
+            }
+
+            string consulta = "DELETE FROM EMPRESAS_TRANSPORTE WHERE EmpresaId = @EmpresaId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@EmpresaId", empresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al eliminar empresa: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool EliminarConductor(int conductorId)
+        {
+            // Verificar si está siendo usado en viajes  
+            if (TieneViajesAsociados(conductorId))
+            {
+                return false; // No se puede eliminar si tiene viajes asociados  
+            }
+
+            string consulta = "DELETE FROM CONDUCTORES WHERE ConductorId = @ConductorId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@ConductorId", conductorId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al eliminar conductor: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool EliminarVehiculo(int vehiculoId)
+        {
+            // Verificar si está siendo usado en viajes  
+            if (TieneViajesAsociadosVehiculo(vehiculoId))
+            {
+                return false; // No se puede eliminar si tiene viajes asociados  
+            }
+
+            string consulta = "DELETE FROM VEHICULOS WHERE VehiculoId = @VehiculoId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@VehiculoId", vehiculoId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int filasAfectadas = comando.ExecuteNonQuery();
+                        return filasAfectadas > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al eliminar vehículo: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+        private bool TieneVehiculosAsociados(int empresaId)
+        {
+            string consulta = "SELECT COUNT(*) FROM VEHICULOS WHERE EmpresaId = @EmpresaId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@EmpresaId", empresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar vehículos: {ex.Message}");
+                        return true; // En caso de error, asumir que tiene dependencias  
+                    }
+                }
+            }
+        }
+
+        private bool TieneConductoresAsociados(int empresaId)
+        {
+            string consulta = "SELECT COUNT(*) FROM CONDUCTORES WHERE EmpresaId = @EmpresaId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@EmpresaId", empresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar conductores: {ex.Message}");
+                        return true; // En caso de error, asumir que tiene dependencias  
+                    }
+                }
+            }
+        }
+
+        private bool TieneViajesAsociados(int conductorId)
+        {
+            string consulta = "SELECT COUNT(*) FROM VIAJES WHERE ConductorId = @ConductorId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@ConductorId", conductorId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar viajes del conductor: {ex.Message}");
+                        return true; // En caso de error, asumir que tiene dependencias  
+                    }
+                }
+            }
+        }
+
+        private bool TieneViajesAsociadosVehiculo(int vehiculoId)
+        {
+            string consulta = "SELECT COUNT(*) FROM VIAJES WHERE VehiculoId = @VehiculoId";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@VehiculoId", vehiculoId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar viajes del vehículo: {ex.Message}");
+                        return true; // En caso de error, asumir que tiene dependencias  
+                    }
+                }
+            }
+        }
+        public bool ExisteRUCEmpresa(string ruc, int? empresaIdExcluir = null)
+        {
+            string consulta = "SELECT COUNT(*) FROM EMPRESAS_TRANSPORTE WHERE RUC = @RUC";
+
+            if (empresaIdExcluir.HasValue)
+            {
+                consulta += " AND EmpresaId != @EmpresaIdExcluir";
+            }
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@RUC", ruc);
+                    if (empresaIdExcluir.HasValue)
+                    {
+                        comando.Parameters.AddWithValue("@EmpresaIdExcluir", empresaIdExcluir.Value);
+                    }
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar RUC: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+        public bool ExistePlacaVehiculo(string placa, int? vehiculoIdExcluir = null)
+        {
+            string consulta = "SELECT COUNT(*) FROM VEHICULOS WHERE Placa = @Placa";
+
+            if (vehiculoIdExcluir.HasValue)
+            {
+                consulta += " AND VehiculoId != @VehiculoIdExcluir";
+            }
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@Placa", placa.ToUpper());
+                    if (vehiculoIdExcluir.HasValue)
+                    {
+                        comando.Parameters.AddWithValue("@VehiculoIdExcluir", vehiculoIdExcluir.Value);
+                    }
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar placa: {ex.Message}");
+                        return false;
+                    }
+                }
+            }
+        }
+        public bool EmpresaTieneDependencias(int empresaId)
+        {
+            string consulta = @"  
+        SELECT   
+            (SELECT COUNT(*) FROM CONDUCTORES WHERE EmpresaId = @EmpresaId) +  
+            (SELECT COUNT(*) FROM VEHICULOS WHERE EmpresaId = @EmpresaId) AS TotalDependencias";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@EmpresaId", empresaId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int totalDependencias = (int)comando.ExecuteScalar();
+                        return totalDependencias > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar dependencias de empresa: {ex.Message}");
+                        return true; // Por seguridad, asumir que tiene dependencias  
+                    }
+                }
+            }
+        }
+        public bool ConductorTieneViajesActivos(int conductorId)
+        {
+            string consulta = @"  
+        SELECT COUNT(*) FROM VIAJES   
+        WHERE ConductorId = @ConductorId   
+        AND Estado IN ('Activo', 'En Proceso')";
+
+            using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
+            {
+                using (SqlCommand comando = new SqlCommand(consulta, conexion))
+                {
+                    comando.Parameters.AddWithValue("@ConductorId", conductorId);
+
+                    try
+                    {
+                        conexion.Open();
+                        int count = (int)comando.ExecuteScalar();
+                        return count > 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error al verificar viajes del conductor: {ex.Message}");
+                        return true; // Por seguridad, asumir que tiene viajes  
+                    }
+                }
+            }
+        }
+
     }
 }

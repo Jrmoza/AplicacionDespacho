@@ -257,15 +257,15 @@ namespace AplicacionDespacho.ViewModels
                 {
                     pallet.PesoUnitario = pesoEmbalaje.PesoUnitario;
 
-                    // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC  
+                    // ✅ LÓGICA DE PALLET COMPLETO: Verificar si es PC      
                     bool esPalletCompleto = pallet.EsPC;
 
                     if (esPalletCompleto && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
                     {
-                        // Para pallets PC, usar el total de ficha técnica  
+                        // Para pallets PC, usar el total de ficha técnica      
                         if (pallet.EsBicolor)
                         {
-                            // Para PC bicolor, el peso se basa en el total de ambas variedades  
+                            // Para PC bicolor, el peso se basa en el total de ambas variedades      
                             int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
                             pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
 
@@ -274,19 +274,42 @@ namespace AplicacionDespacho.ViewModels
                         }
                         else
                         {
-                            // Para PC normal, usar ficha técnica  
-                            pallet.PesoTotal = pesoEmbalaje.TotalCajasFichaTecnica.Value * pesoEmbalaje.PesoUnitario;
+                            // NUEVA VALIDACIÓN: Verificar si el número de cajas manual difiere de ficha técnica    
+                            int cajasManual = pallet.NumeroDeCajas;
+                            int cajasFichaTecnica = pesoEmbalaje.TotalCajasFichaTecnica.Value;
+
+                            if (cajasManual != cajasFichaTecnica)
+                            {
+                                // Mostrar mensaje informativo sobre la discrepancia    
+                                MostrarMensajeValidacionPC(pallet.NumeroPallet, cajasManual, cajasFichaTecnica);
+                            }
+
+                            // Para PC normal, usar ficha técnica (funcionalidad original preservada)    
+                            decimal pesoCalculadoCorrect = cajasFichaTecnica * pesoEmbalaje.PesoUnitario;
+
+                            // NUEVA VALIDACIÓN VISUAL: Verificar inconsistencia en peso total  
+                            if (Math.Abs(pallet.PesoTotal - pesoCalculadoCorrect) > 0.001m)
+                            {
+                                // Marcar pallet con inconsistencia visual  
+                                MarcarPalletConInconsistencia(pallet, pesoCalculadoCorrect);
+
+                                _logger.LogWarning("Inconsistencia detectada en pallet PC {NumeroPallet}: " +
+                                                 "Peso actual {PesoActual} vs esperado {PesoEsperado}",
+                                                 pallet.NumeroPallet, pallet.PesoTotal, pesoCalculadoCorrect);
+                            }
+
+                            pallet.PesoTotal = pesoCalculadoCorrect;
 
                             _logger.LogInfo("Peso recalculado para pallet PC {NumeroPallet}: {TotalCajas} cajas = {PesoTotal} kg",
-                                          pallet.NumeroPallet, pesoEmbalaje.TotalCajasFichaTecnica.Value, pallet.PesoTotal);
+                                          pallet.NumeroPallet, cajasFichaTecnica, pallet.PesoTotal);
                         }
                     }
                     else
                     {
-                        // Para pallets normales (no PC)  
+                        // Para pallets normales (no PC) - funcionalidad original preservada    
                         if (pallet.EsBicolor)
                         {
-                            // Para bicolor, sumar ambas variedades  
+                            // Para bicolor, sumar ambas variedades      
                             int totalCajas = pallet.NumeroDeCajas + pallet.CajasSegundaVariedad;
                             pallet.PesoTotal = totalCajas * pesoEmbalaje.PesoUnitario;
 
@@ -295,7 +318,7 @@ namespace AplicacionDespacho.ViewModels
                         }
                         else
                         {
-                            // Para pallet normal, usar solo primera variedad  
+                            // Para pallet normal, usar solo primera variedad      
                             pallet.PesoTotal = pallet.NumeroDeCajas * pesoEmbalaje.PesoUnitario;
 
                             _logger.LogInfo("Peso recalculado para pallet normal {NumeroPallet}: {NumeroCajas} cajas = {PesoTotal} kg",
@@ -313,6 +336,67 @@ namespace AplicacionDespacho.ViewModels
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error recalculando peso del pallet: {NumeroPallet}", pallet.NumeroPallet);
+            }
+        }
+
+        // NUEVO: Método auxiliar para marcar inconsistencias visuales  
+        private void MarcarPalletConInconsistencia(InformacionPallet pallet, decimal pesoEsperado)
+        {
+            // Agregar propiedad visual para marcar inconsistencia  
+            // Esto se puede implementar agregando una propiedad al modelo InformacionPallet  
+            // como "TieneInconsistenciaPeso" que se use en el DataGrid para colorear la fila  
+
+            _logger.LogInfo("Marcando pallet {NumeroPallet} con inconsistencia visual. " +
+                           "Peso esperado: {PesoEsperado}, Peso actual: {PesoActual}",
+                           pallet.NumeroPallet, pesoEsperado, pallet.PesoTotal);
+        }
+
+        // NUEVO MÉTODO: Mostrar mensaje informativo para validación PC  
+        private void MostrarMensajeValidacionPC(string numeroPallet, int cajasManual, int cajasFichaTecnica)
+        {
+            string mensaje = $"VALIDACIÓN PALLET COMPLETO (PC)" +
+                            $"Pallet: {numeroPallet}" +
+                            $"Cajas ingresadas manualmente: {cajasManual}" +
+                            $"Cajas según ficha técnica: {cajasFichaTecnica}" +
+                            $"Para pallets completos (PC) monocolor, el número de cajas debe coincidir exactamente con la ficha técnica." +
+                            $"Se usará el valor de ficha técnica para mantener la integridad del pallet completo.";
+
+            MessageBox.Show(mensaje, "Validación Pallet Completo",
+                           MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        private bool ValidarCajasPalletCompleto(InformacionPallet pallet, PesoEmbalaje pesoEmbalaje)
+        {
+            // Solo validar para pallets PC monocolor  
+            if (!pallet.EsPC || pallet.EsBicolor || !pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
+                return true;
+
+            return pallet.NumeroDeCajas == pesoEmbalaje.TotalCajasFichaTecnica.Value;
+        }
+        public bool ValidarConsistenciaPesoPallet(InformacionPallet pallet)
+        {
+            try
+            {
+                var pesoEmbalaje = _accesoDatosViajes.ObtenerPesoEmbalaje(pallet.Embalaje);
+                if (pesoEmbalaje == null) return true; // Si no hay configuración, no validar  
+
+                // Solo validar pallets PC monocolor  
+                if (pallet.EsPC && !pallet.EsBicolor && pesoEmbalaje.TotalCajasFichaTecnica.HasValue)
+                {
+                    // Calcular peso esperado usando ficha técnica  
+                    decimal pesoEsperado = pesoEmbalaje.TotalCajasFichaTecnica.Value * pesoEmbalaje.PesoUnitario;
+
+                    // Comparar con tolerancia mínima para errores de redondeo  
+                    decimal diferencia = Math.Abs(pallet.PesoTotal - pesoEsperado);
+
+                    return diferencia < 0.01m; // Tolerancia de 0.01 kg  
+                }
+
+                return true; // Para otros tipos de pallets, no validar  
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validando consistencia de peso para pallet: {NumeroPallet}", pallet.NumeroPallet);
+                return true; // En caso de error, no marcar como inconsistente  
             }
         }
 

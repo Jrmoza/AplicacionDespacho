@@ -13,7 +13,7 @@ namespace AplicacionDespacho.Models
         public int NumeroDeCajas { get; set; }
         public decimal PesoUnitario { get; set; }
         public decimal PesoTotal { get; set; }
-
+        public bool TienePesoInconsistente { get; set; } = false;
         // Campos para rastrear modificaciones (mantener todos)    
         public string VariedadOriginal { get; set; }
         public string CalibreOriginal { get; set; }

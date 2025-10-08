@@ -107,8 +107,8 @@ namespace AplicacionDespacho
         }
         private void btnAbrirAdmin_Click(object sender, RoutedEventArgs e)
         {
-            var adminWindow = new AdminWindow();
-            adminWindow.ShowDialog();
+            var gestionEmpresasWindow = new GestionEmpresasWindow();
+            gestionEmpresasWindow.ShowDialog();
         }
 
         private void btnConsultasReportes_Click(object sender, RoutedEventArgs e)

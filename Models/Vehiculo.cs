@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 
 namespace AplicacionDespacho.Models
 {
-    // Models/Vehiculo.cs
     public class Vehiculo
     {
         public int VehiculoId { get; set; }
         public string Placa { get; set; }
         public int EmpresaId { get; set; }
+
+        // AGREGAR ESTA PROPIEDAD    
+        public string NombreEmpresa { get; set; }
     }
 }
