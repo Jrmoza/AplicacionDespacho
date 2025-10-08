@@ -390,6 +390,7 @@ namespace AplicacionDespacho.Services
                 }
             }
         }
+
         // Agregar en Services/SignalRService.cs después del método SendPalletErrorToMobileAsync  
         public async Task SendPalletInfoToMobileAsync(string tripId, string infoMessage, string deviceId)
         {
@@ -404,6 +405,23 @@ namespace AplicacionDespacho.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "❌ Error enviando mensaje informativo al móvil: {ErrorMessage}", ex.Message);
+                    throw;
+                }
+            }
+        }
+        // NUEVO: Método para broadcast de mensajes informativos a todos los móviles del viaje  
+        public async Task BroadcastPalletInfoToTripAsync(string tripId, string infoMessage)
+        {
+            if (_connection?.State == HubConnectionState.Connected)
+            {
+                try
+                {
+                    await _connection.InvokeAsync("BroadcastPalletInfoToTrip", tripId, infoMessage);
+                    _logger.LogInfo("📢 Mensaje informativo broadcast al viaje: {TripId}", tripId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Error enviando broadcast informativo: {ErrorMessage}", ex.Message);
                     throw;
                 }
             }
