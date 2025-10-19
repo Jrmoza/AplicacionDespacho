@@ -70,17 +70,20 @@
 
                 <!-- DataGrid de lotes/cuarteles -->
                 <DataGrid Grid.Row="1" ItemsSource="{Binding Lotes}"         
-          AutoGenerateColumns="False" IsReadOnly="True"        
-          Margin="10"    
-          Visibility="{Binding Lotes.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                          AutoGenerateColumns="False" IsReadOnly="True"        
+                          Margin="10"    
+                          Visibility="{Binding Lotes.Count, Converter={StaticResource CountToVisibilityConverter}}">    
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Cuartel" Binding="{Binding CodigoCuartel}" Width="100"/>
                         <DataGridTextColumn Header="CSG Predio" Binding="{Binding CSGPredio}" Width="150"/>
                         <DataGridTextColumn Header="Predio" Binding="{Binding NombrePredio}" Width="200"/>
                         <DataGridTextColumn Header="Productor" Binding="{Binding NombreProductor}" Width="200"/>
+
+                        <!-- ⭐ NUEVAS COLUMNAS AGREGADAS -->
+                        <DataGridTextColumn Header="Embalaje" Binding="{Binding EmbalajeCaja}" Width="100"/>
                         <DataGridTextColumn Header="Variedad" Binding="{Binding VariedadCaja}" Width="150"/>
                         <DataGridTextColumn Header="Calibre" Binding="{Binding CalibreCaja}" Width="100"/>
-                        <DataGridTextColumn Header="Embalaje" Binding="{Binding EmbalajeCaja}" Width="150"/>
+
                         <DataGridTextColumn Header="Cajas" Binding="{Binding CantidadCajas}" Width="80"/>
                     </DataGrid.Columns>
                 </DataGrid>
