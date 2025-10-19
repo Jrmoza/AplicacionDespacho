@@ -1,5 +1,4 @@
-﻿// App.xaml.cs - VERSIÓN ACTUALIZADA  
-using System;
+﻿using System;
 using System.Configuration;
 using System.Windows;
 using AplicacionDespacho.Configuration;
@@ -15,6 +14,8 @@ namespace AplicacionDespacho
                 // Validar configuración al inicio  
                 AppConfig.ValidateConfiguration();
 
+                // CAMBIO: Ya no llamamos a base.OnStartup() aquí  
+                // porque el StartupUri en App.xaml se encarga de abrir ModuleSelectorWindow  
                 base.OnStartup(e);
             }
             catch (ConfigurationErrorsException ex)

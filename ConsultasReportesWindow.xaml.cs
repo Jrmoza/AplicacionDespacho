@@ -1,8 +1,8 @@
 ﻿// ConsultasReportesWindow.xaml.cs - CÓDIGO COMPLETO ACTUALIZADO  
 using AplicacionDespacho.Models;
+using AplicacionDespacho.Modules.Despacho.ViewModels;
 using AplicacionDespacho.Services.DataAccess;
 using AplicacionDespacho.utilities;
-using AplicacionDespacho.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;

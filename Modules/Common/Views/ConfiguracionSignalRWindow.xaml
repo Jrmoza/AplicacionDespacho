@@ -1,4 +1,4 @@
-﻿<Window x:Class="AplicacionDespacho.Windows.ConfiguracionSignalRWindow"    
+﻿<Window x:Class="AplicacionDespacho.Modules.Common.Views.ConfiguracionSignalRWindow"  
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"    
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"    
         Title="Configuración del Servidor SignalR"     

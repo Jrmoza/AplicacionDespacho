@@ -5,6 +5,7 @@ using AplicacionDespacho.Services;
 using AplicacionDespacho.Services.DataAccess;
 using AplicacionDespacho.Services.Logging;
 using AplicacionDespacho.utilities;
+using AplicacionDespacho.ViewModels;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace AplicacionDespacho.ViewModels
+namespace AplicacionDespacho.Modules.Despacho.ViewModels
 {
     public class ViewModelPrincipal : INotifyPropertyChanged, IDisposable
     {
@@ -1202,7 +1203,7 @@ namespace AplicacionDespacho.ViewModels
 
                         // NUEVO: Mensaje específico para pallets bicolor    
                         string mensaje = huboModificacion ?
-                            (UltimoPalletEscaneado.EsBicolor ? "Cambios aplicados. Pallet bicolor marcado como modificado." : "Cambios aplicados. Pallet marcado como modificado.") :
+                            UltimoPalletEscaneado.EsBicolor ? "Cambios aplicados. Pallet bicolor marcado como modificado." : "Cambios aplicados. Pallet marcado como modificado." :
                             "Cambios aplicados.";
 
                         MessageBox.Show(mensaje, "Edición", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1654,7 +1655,7 @@ namespace AplicacionDespacho.ViewModels
 
                         // Deserializar los datos del pallet editado recibido  
                         var palletDataJson = System.Text.Json.JsonSerializer.Serialize(palletData);
-                        var palletEditado = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(palletDataJson);
+                        var palletEditado = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(palletDataJson);
 
                         if (palletEditado.TryGetProperty("numeroPallet", out var numeroPalletElement))
                         {
@@ -1882,7 +1883,7 @@ namespace AplicacionDespacho.ViewModels
 
                         // PASO 2: Deserializar datos editados        
                         var editedDataJson = System.Text.Json.JsonSerializer.Serialize(editedData);
-                        var editedPalletData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(editedDataJson);
+                        var editedPalletData = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(editedDataJson);
 
                         // PASO 3: Aplicar cambios UNA SOLA VEZ        
                         if (editedPalletData.TryGetProperty("calibre", out var calibreElement))
@@ -1896,7 +1897,7 @@ namespace AplicacionDespacho.ViewModels
 
                         if (editedPalletData.TryGetProperty("numeroDeCajas", out var cajasElement))
                         {
-                            if (cajasElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                            if (cajasElement.ValueKind == JsonValueKind.Number)
                                 existingPallet.NumeroDeCajas = cajasElement.TryGetInt32(out var intValue) ? intValue : (int)cajasElement.GetDouble();
                         }
 

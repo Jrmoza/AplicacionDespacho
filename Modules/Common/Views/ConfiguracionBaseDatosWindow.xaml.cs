@@ -9,7 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace AplicacionDespacho.Windows
+namespace AplicacionDespacho.Modules.Common.Views
 {
     public partial class ConfiguracionBaseDatosWindow : Window, INotifyPropertyChanged
     {
@@ -28,7 +28,7 @@ namespace AplicacionDespacho.Windows
         private Visibility _mostrarResultado = Visibility.Collapsed;
         private string _logActividad = "";
 
-        #endregion
+        #endregion  
 
         #region Properties  
 

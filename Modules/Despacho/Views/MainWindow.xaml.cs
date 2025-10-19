@@ -1,13 +1,14 @@
 ﻿using AplicacionDespacho.Models;
 using AplicacionDespacho.Services.DataAccess;
 using AplicacionDespacho.utilities;
-using AplicacionDespacho.ViewModels;
+using AplicacionDespacho.Modules.Despacho.ViewModels;  // ACTUALIZADO  
 using AplicacionDespacho.Windows;
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using AplicacionDespacho.Modules.Common.Views;
 
-namespace AplicacionDespacho
+namespace AplicacionDespacho.Modules.Despacho.Views
 {
     public partial class MainWindow : Window
     {
@@ -152,14 +153,15 @@ namespace AplicacionDespacho
         }
         private void MenuConfiguracionBD_Click(object sender, RoutedEventArgs e)
         {
-            var ventanaConfig = new ConfiguracionBaseDatosWindow();
+            var ventanaConfig = new AplicacionDespacho.Modules.Common.Views.ConfiguracionBaseDatosWindow();
             ventanaConfig.Owner = this;
             ventanaConfig.ShowDialog();
         }
+
         private void MenuConfiguracionSignalR_Click(object sender, RoutedEventArgs e)
         {
             var viewModel = this.DataContext as ViewModelPrincipal;
-            var ventanaConfig = new AplicacionDespacho.Windows.ConfiguracionSignalRWindow(viewModel?.SignalRService);
+            var ventanaConfig = new AplicacionDespacho.Modules.Common.Views.ConfiguracionSignalRWindow(viewModel?.SignalRService);
             ventanaConfig.Owner = this;
             ventanaConfig.ShowDialog();
         }

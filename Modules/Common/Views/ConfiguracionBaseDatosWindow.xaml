@@ -1,4 +1,4 @@
-﻿<Window x:Class="AplicacionDespacho.Windows.ConfiguracionBaseDatosWindow"  
+﻿<Window x:Class="AplicacionDespacho.Modules.Common.Views.ConfiguracionBaseDatosWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"  
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"  
         Title="Configuración de Base de Datos" Height="550" Width="600"  
