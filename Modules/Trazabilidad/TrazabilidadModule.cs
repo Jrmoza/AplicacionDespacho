@@ -48,9 +48,10 @@ namespace AplicacionDespacho.Modules.Trazabilidad
 
         protected override Window CreateMainWindow(string deviceId)
         {
-            // Crear ventana según el perfil seleccionado    
-            // NOTA: deviceId se ignora por ahora ya que las ventanas no lo necesitan en su constructor  
-            switch (_selectedProfile)
+            // Si no se especificó perfil, usar el del constructor  
+            string profileToUse = _selectedProfile;
+
+            switch (profileToUse)
             {
                 case "Testeador":
                     return new TesteadorWindow();
@@ -59,7 +60,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad
                     return new RegistradorWindow();
 
                 default:
-                    throw new ArgumentException($"Perfil desconocido: {_selectedProfile}");
+                    throw new ArgumentException($"Perfil desconocido: {profileToUse}");
             }
         }
 

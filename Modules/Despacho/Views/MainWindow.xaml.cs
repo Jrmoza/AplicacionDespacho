@@ -2,11 +2,12 @@
 using AplicacionDespacho.Services.DataAccess;
 using AplicacionDespacho.utilities;
 using AplicacionDespacho.Modules.Despacho.ViewModels;  // ACTUALIZADO  
-using AplicacionDespacho.Windows;
+
 using System;
 using System.Windows;
 using System.Windows.Controls;
 using AplicacionDespacho.Modules.Common.Views;
+
 
 namespace AplicacionDespacho.Modules.Despacho.Views
 {

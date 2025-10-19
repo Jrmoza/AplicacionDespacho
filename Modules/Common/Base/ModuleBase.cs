@@ -71,13 +71,12 @@ namespace AplicacionDespacho.Modules.Common.Base
         {
             // Inicializar SignalR con configuración del módulo  
             var hubUrl = Configuration.AppConfig.SignalRHubUrl;
-            SignalRService = new SignalRService(hubUrl, ModuleInfo.ModuleId);
+            SignalRService = new SignalRService(hubUrl);
         }
-
         public virtual void Cleanup()
         {
-            // Limpiar recursos del módulo  
-            SignalRService?.Disconnect();
+            // Limpiar recursos del módulo    
+            SignalRService?.StopConnectionAsync().Wait(); // ✅ CORRECTO  
         }
     }
 }

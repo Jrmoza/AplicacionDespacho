@@ -162,9 +162,9 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Registrador.ViewModel
             LimpiarFormularioCommand = new RelayCommand(LimpiarFormulario);
 
             // Cargar datos de catálogos  
-            CargarCatalogos();
+            //CargarCatalogos();
         }
-
+        /*
         private void CargarCatalogos()
         {
             try
@@ -198,7 +198,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Registrador.ViewModel
                 MessageBox.Show($"Error al cargar catálogos: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
-        }
+        }*/
 
         private void AgregarLote(object parameter)
         {

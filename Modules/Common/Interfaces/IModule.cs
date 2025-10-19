@@ -1,5 +1,5 @@
 ﻿using System.Windows;
-
+using AplicacionDespacho.Modules.Common.Models;
 namespace AplicacionDespacho.Modules.Common.Interfaces
 {
     /// <summary>  

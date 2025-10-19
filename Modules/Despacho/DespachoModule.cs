@@ -42,18 +42,5 @@ namespace AplicacionDespacho.Modules.Despacho
             // El parámetro deviceId se ignora por ahora, pero está disponible si se necesita en el futuro  
             return new MainWindow();
         }
-
-        public override void Initialize()
-        {
-            // Inicialización específica del módulo de despacho    
-            // Por ejemplo: cargar configuraciones, inicializar servicios, etc.    
-            base.Initialize();
-        }
-
-        public override void Cleanup()
-        {
-            // Limpieza de recursos del módulo    
-            base.Cleanup();
-        }
     }
 }

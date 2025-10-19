@@ -11,15 +11,15 @@ using AplicacionDespacho.Services.DataAccess;
 
 namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
 {
-    /// <summary>  
-    /// ViewModel para el perfil Testeador del módulo de Trazabilidad  
-    /// Permite consultar y eliminar pallets de la base Packing_SJP  
-    /// </summary>  
+    /// <summary>    
+    /// ViewModel para el perfil Testeador del módulo de Trazabilidad    
+    /// Permite consultar y eliminar pallets de la base Packing_SJP    
+    /// </summary>    
     public class TesteadorViewModel : INotifyPropertyChanged
     {
         private readonly AccesoDatosPallet _accesoDatosPallet;
 
-        // Propiedades para búsqueda  
+        // Propiedades para búsqueda    
         private string _numeroPallet;
         public string NumeroPallet
         {
@@ -31,7 +31,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             }
         }
 
-        // Propiedades para mostrar información del pallet  
+        // Propiedades para mostrar información del pallet    
         private string _palletInfo;
         public string PalletInfo
         {
@@ -43,7 +43,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             }
         }
 
-        // Lista de lotes/cuarteles del pallet  
+        // Lista de lotes/cuarteles del pallet    
         private ObservableCollection<LoteInfo> _lotes;
         public ObservableCollection<LoteInfo> Lotes
         {
@@ -55,7 +55,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             }
         }
 
-        // Estado de validación  
+        // Estado de validación    
         private string _estadoValidacion;
         public string EstadoValidacion
         {
@@ -78,7 +78,7 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             }
         }
 
-        // Comandos  
+        // Comandos    
         public ICommand BuscarPalletCommand { get; }
         public ICommand EliminarPalletCommand { get; }
 
@@ -104,41 +104,47 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         {
             try
             {
-                // Limpiar datos anteriores  
+                // Limpiar datos anteriores      
                 Lotes.Clear();
                 PalletInfo = "";
                 EstadoValidacion = "";
 
-                // TODO: Implementar consulta con la nueva query que incluye lotes  
-                // Por ahora usamos la consulta simple existente  
-                var pallet = _accesoDatosPallet.ObtenerDatosPallet(NumeroPallet);
+                // Desestructurar la tupla retornada por ObtenerPalletConLotes  
+                var (pallet, lotes, estadoValidacion) = _accesoDatosPallet.ObtenerPalletConLotes(NumeroPallet);
 
-                if (pallet != null)
+                // Verificar si se encontró el pallet  
+                if (pallet != null && lotes != null && lotes.Count > 0)
                 {
+                    // Mostrar información básica del pallet  
                     PalletInfo = $"Pallet: {pallet.NumeroPallet}\n" +
                                 $"Variedad: {pallet.Variedad}\n" +
                                 $"Calibre: {pallet.Calibre}\n" +
                                 $"Embalaje: {pallet.Embalaje}\n" +
                                 $"Total Cajas: {pallet.NumeroDeCajas}";
 
-                    // TODO: Cargar lotes desde la nueva consulta  
-                    // Por ahora mostramos un lote único con el total  
-                    Lotes.Add(new LoteInfo
+                    // Cargar todos los lotes en la colección observable  
+                    foreach (var lote in lotes)
                     {
-                        CodigoCuartel = "N/A",
-                        CSGPredio = "N/A",
-                        NombrePredio = "N/A",
-                        NombreProductor = "N/A",
-                        CantidadCajas = pallet.NumeroDeCajas
-                    });
+                        Lotes.Add(lote);
+                    }
 
-                    EstadoValidacion = "Pallet encontrado";
-                    ColorValidacion = Brushes.Green;
+                    // Validar que la suma de cajas por lote coincida con el total    
+                    int sumaCajas = Lotes.Sum(l => l.CantidadCajas);
+                    if (sumaCajas == pallet.NumeroDeCajas)
+                    {
+                        EstadoValidacion = $"OK - {Lotes.Count} lote(s) encontrado(s)";
+                        ColorValidacion = Brushes.Green;
+                    }
+                    else
+                    {
+                        EstadoValidacion = $"DISCREPANCIA - Total: {pallet.NumeroDeCajas}, Suma lotes: {sumaCajas}";
+                        ColorValidacion = Brushes.Orange;
+                    }
                 }
                 else
                 {
-                    PalletInfo = "Pallet no encontrado";
-                    EstadoValidacion = "No encontrado";
+                    PalletInfo = "Pallet no encontrado en la base de datos";
+                    EstadoValidacion = estadoValidacion ?? "No encontrado";
                     ColorValidacion = Brushes.Red;
                 }
             }
@@ -175,26 +181,41 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             {
                 try
                 {
-                    // TODO: Implementar eliminación en AccesoDatosPallet  
-                    // Por ahora mostramos mensaje de no implementado  
-                    MessageBox.Show(
-                        "Funcionalidad de eliminación pendiente de implementar.\n\n" +
-                        "Se requiere crear método EliminarPallet en AccesoDatosPallet " +
-                        "que ejecute las 5 consultas DELETE en orden correcto.",
-                        "Pendiente",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    // Ejecutar eliminación usando el nuevo método  
+                    bool eliminado = _accesoDatosPallet.EliminarPallet(NumeroPallet);
 
-                    // Limpiar después de eliminar  
-                    // Lotes.Clear();  
-                    // PalletInfo = "Pallet eliminado exitosamente";  
-                    // EstadoValidacion = "Eliminado";  
-                    // ColorValidacion = Brushes.Orange;  
+                    if (eliminado)
+                    {
+                        MessageBox.Show(
+                            $"El pallet {NumeroPallet} ha sido eliminado exitosamente de todas las tablas.",
+                            "Eliminación Exitosa",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+
+                        // Limpiar la interfaz después de eliminar  
+                        Lotes.Clear();
+                        PalletInfo = "Pallet eliminado exitosamente";
+                        EstadoValidacion = "Eliminado";
+                        ColorValidacion = Brushes.Orange;
+                        NumeroPallet = string.Empty;
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            $"No se pudo eliminar el pallet {NumeroPallet}. Verifique que exista en la base de datos.",
+                            "Error de Eliminación",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error al eliminar pallet:\n{ex.Message}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(
+                        $"Error al eliminar pallet:\n{ex.Message}\n\n" +
+                        "La transacción ha sido revertida. No se realizaron cambios en la base de datos.",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             }
         }
@@ -206,9 +227,9 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         }
     }
 
-    /// <summary>  
-    /// Clase auxiliar para mostrar información de lotes en el DataGrid  
-    /// </summary>  
+    /// <summary>    
+    /// Clase auxiliar para mostrar información de lotes en el DataGrid    
+    /// </summary>    
     public class LoteInfo
     {
         public string CodigoCuartel { get; set; }
@@ -218,9 +239,9 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         public int CantidadCajas { get; set; }
     }
 
-    /// <summary>  
-    /// Implementación simple de ICommand para los botones  
-    /// </summary>  
+    /// <summary>    
+    /// Implementación simple de ICommand para los botones    
+    /// </summary>    
     public class RelayCommand : ICommand
     {
         private readonly Action<object> _execute;
