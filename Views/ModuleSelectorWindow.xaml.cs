@@ -30,10 +30,10 @@ namespace AplicacionDespacho.Views
             _availableModules = new List<IModule>
             {
                 new DespachoModule(),
-                new TrazabilidadModule()
+                new TrazabilidadModule() // Sin perfil por defecto - se seleccionará en la UI  
             };
 
-            // Filtrar solo módulos habilitados y ordenar      
+            // Filtrar solo módulos habilitados y ordenar        
             var enabledModules = _availableModules
                 .Where(m => m.GetModuleInfo().IsEnabled)
                 .OrderBy(m => m.GetModuleInfo().DisplayOrder)
@@ -43,8 +43,7 @@ namespace AplicacionDespacho.Views
             ModulesItemsControl.ItemsSource = enabledModules;
         }
 
-    
-        // Método para abrir módulo sin perfil específico    
+        // Método para abrir módulo sin perfil específico (para módulos simples como Despacho)  
         private void OpenModule_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is ModuleInfo moduleInfo)
@@ -52,55 +51,20 @@ namespace AplicacionDespacho.Views
                 var module = _availableModules.FirstOrDefault(m => m.GetModuleInfo().ModuleId == moduleInfo.ModuleId);
                 if (module != null)
                 {
-                    LaunchModule(module, null);  // ✅ CORRECTO - pasar null como segundo parámetro  
-                }
-            }
-        }
-
-        // Método para hacer clic en la tarjeta del módulo  
-        private void ModuleCard_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is Border border && border.Tag is string moduleId)
-            {
-                var module = _availableModules.FirstOrDefault(m => m.GetModuleInfo().ModuleId == moduleId);
-                if (module != null && (module.GetModuleInfo().AvailableProfiles == null ||
-                       module.GetModuleInfo().AvailableProfiles.Count == 0))
-                {
                     LaunchModule(module, null);
                 }
             }
         }
 
-        // NUEVO: Método para abrir módulo con perfil específico  
-        private void ProfileButton_Click(object sender, RoutedEventArgs e)
+        // Método para hacer clic en la tarjeta del módulo (solo para módulos sin perfiles)  
+        private void ModuleCard_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Button button)
+            if (sender is Border border && border.DataContext is ModuleInfo moduleInfo)
             {
-                // El Content del botón es el nombre del perfil (string)  
-                string profile = button.Content.ToString();
-
-                // Buscar el ModuleInfo desde el DataContext del ItemsControl  
-                var moduleInfo = button.DataContext as string; // El perfil  
-
-                // Necesitamos encontrar el módulo padre  
-                // Buscar en el árbol visual para obtener el Border que contiene el ModuleInfo  
-                DependencyObject parent = VisualTreeHelper.GetParent(button);
-                while (parent != null && !(parent is Border))
+                // Solo lanzar si el módulo NO tiene perfiles  
+                if (moduleInfo.AvailableProfiles == null || moduleInfo.AvailableProfiles.Count == 0)
                 {
-                    parent = VisualTreeHelper.GetParent(parent);
-                }
-
-                if (parent is Border border && border.DataContext is ModuleInfo moduleInfoObj)
-                {
-                    string moduleId = moduleInfoObj.ModuleId;
-
-                    // Crear NUEVA instancia del módulo con el perfil específico  
-                    IModule module = null;
-                    if (moduleId == "Trazabilidad")
-                    {
-                        module = new TrazabilidadModule(profile);
-                    }
-
+                    var module = _availableModules.FirstOrDefault(m => m.GetModuleInfo().ModuleId == moduleInfo.ModuleId);
                     if (module != null)
                     {
                         LaunchModule(module, null);
@@ -109,29 +73,73 @@ namespace AplicacionDespacho.Views
             }
         }
 
+        // Método para abrir módulo con perfil específico (para módulos con perfiles como Trazabilidad)  
+        private void ProfileButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button)
+            {
+                // El Content del botón es el nombre del perfil (string)  
+                string profile = button.Content.ToString();
+
+                // Navegar por el árbol visual para encontrar el Border padre que contiene el ModuleInfo  
+                DependencyObject parent = VisualTreeHelper.GetParent(button);
+
+                // Subir hasta encontrar el Border principal de la tarjeta del módulo  
+                while (parent != null)
+                {
+                    if (parent is Border border && border.DataContext is ModuleInfo moduleInfo)
+                    {
+                        string moduleId = moduleInfo.ModuleId;
+
+                        // Crear NUEVA instancia del módulo con el perfil específico  
+                        IModule module = null;
+                        if (moduleId == "Trazabilidad")
+                        {
+                            module = new TrazabilidadModule(profile);
+                        }
+                        // Aquí se pueden agregar más módulos con perfiles en el futuro  
+                        // else if (moduleId == "OtroModulo") { ... }  
+
+                        if (module != null)
+                        {
+                            LaunchModule(module, null);
+                        }
+
+                        return; // Salir después de encontrar y procesar  
+                    }
+
+                    parent = VisualTreeHelper.GetParent(parent);
+                }
+
+                // Si llegamos aquí, no se encontró el ModuleInfo  
+                MessageBox.Show(
+                    "No se pudo determinar el módulo para el perfil seleccionado.",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         private void LaunchModule(IModule module, string profile)
         {
             try
             {
-                // Si el módulo es TrazabilidadModule y se especificó un perfil, configurarlo    
-                if (module is TrazabilidadModule trazaModule && !string.IsNullOrEmpty(profile))
-                {
-                    trazaModule.SwitchProfile(profile);
-                }
+                // Nota: El perfil ya está configurado en el constructor del módulo  
+                // No es necesario llamar a SwitchProfile aquí  
 
-                // Inicializar el módulo        
+                // Inicializar el módulo  
                 var moduleWindow = module.InitializeModule();
 
-                // Ocultar selector        
+                // Ocultar selector  
                 this.Hide();
 
-                // Mostrar ventana del módulo        
+                // Mostrar ventana del módulo (modal)  
                 moduleWindow.ShowDialog();
 
-                // Al cerrar, volver a mostrar selector        
+                // Al cerrar, volver a mostrar selector  
                 this.Show();
 
-                // Limpiar recursos        
+                // Limpiar recursos  
                 module.Cleanup();
             }
             catch (Exception ex)
@@ -173,7 +181,7 @@ namespace AplicacionDespacho.Views
         }
     }
 
-    // NUEVO: Convertidor para mostrar elemento cuando Count > 0  
+    // Convertidor para mostrar elemento cuando Count > 0  
     public class CountToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -181,6 +189,10 @@ namespace AplicacionDespacho.Views
             if (value is List<string> list)
             {
                 return list.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (value is int count)
+            {
+                return count > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             return Visibility.Collapsed;
         }
@@ -191,7 +203,7 @@ namespace AplicacionDespacho.Views
         }
     }
 
-    // NUEVO: Convertidor inverso para mostrar elemento cuando Count == 0  
+    // Convertidor inverso para mostrar elemento cuando Count == 0  
     public class InverseCountToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -200,7 +212,11 @@ namespace AplicacionDespacho.Views
             {
                 return list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
-            return Visibility.Visible;
+            if (value is int count)
+            {
+                return count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return Visibility.Visible; // Por defecto, mostrar si no hay lista  
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

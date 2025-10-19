@@ -104,48 +104,95 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         {
             try
             {
-                // Limpiar datos anteriores      
                 Lotes.Clear();
                 PalletInfo = "";
                 EstadoValidacion = "";
 
-                // Desestructurar la tupla retornada por ObtenerPalletConLotes  
+                // Intentar obtener información completa directamente  
                 var (pallet, lotes, estadoValidacion) = _accesoDatosPallet.ObtenerPalletConLotes(NumeroPallet);
 
-                // Verificar si se encontró el pallet  
                 if (pallet != null && lotes != null && lotes.Count > 0)
                 {
-                    // Mostrar información básica del pallet  
+                    // Pallet completo - mostrar normalmente    
                     PalletInfo = $"Pallet: {pallet.NumeroPallet}\n" +
                                 $"Variedad: {pallet.Variedad}\n" +
                                 $"Calibre: {pallet.Calibre}\n" +
                                 $"Embalaje: {pallet.Embalaje}\n" +
                                 $"Total Cajas: {pallet.NumeroDeCajas}";
 
-                    // Cargar todos los lotes en la colección observable  
                     foreach (var lote in lotes)
                     {
                         Lotes.Add(lote);
                     }
 
-                    // Validar que la suma de cajas por lote coincida con el total    
                     int sumaCajas = Lotes.Sum(l => l.CantidadCajas);
                     if (sumaCajas == pallet.NumeroDeCajas)
                     {
                         EstadoValidacion = $"OK - {Lotes.Count} lote(s) encontrado(s)";
                         ColorValidacion = Brushes.Green;
+
+                       /* // NUEVO: Mostrar mensaje de éxito  
+                        MessageBox.Show(
+                            $"Pallet encontrado correctamente:\n\n" +
+                            $"• Número: {pallet.NumeroPallet}\n" +
+                            $"• Variedad: {pallet.Variedad}\n" +
+                            $"• Total cajas: {pallet.NumeroDeCajas}\n" +
+                            $"• Lotes: {Lotes.Count}\n" +
+                            $"• Estado: OK",
+                            "Pallet Correcto",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);*/
                     }
                     else
                     {
                         EstadoValidacion = $"DISCREPANCIA - Total: {pallet.NumeroDeCajas}, Suma lotes: {sumaCajas}";
                         ColorValidacion = Brushes.Orange;
+
+                        // NUEVO: Mostrar advertencia de discrepancia  
+                        MessageBox.Show(
+                            $"⚠️ DISCREPANCIA DETECTADA:\n\n" +
+                            $"Total declarado: {pallet.NumeroDeCajas} cajas\n" +
+                            $"Suma de lotes: {sumaCajas} cajas\n\n" +
+                            $"Verifique la información del pallet.",
+                            "Advertencia",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
                     }
                 }
                 else
                 {
-                    PalletInfo = "Pallet no encontrado en la base de datos";
-                    EstadoValidacion = estadoValidacion ?? "No encontrado";
-                    ColorValidacion = Brushes.Red;
+                    // Pallet no encontrado o incompleto - verificar estado detallado  
+                    var (encontrado, completo, tablasConRegistros, mensaje) =
+                        _accesoDatosPallet.VerificarEstadoPallet(NumeroPallet);
+
+                    if (!encontrado)
+                    {
+                        PalletInfo = "Pallet no encontrado en ninguna tabla";
+                        EstadoValidacion = "No encontrado";
+                        ColorValidacion = Brushes.Red;
+
+                        // NUEVO: Mostrar mensaje de no encontrado  
+                        MessageBox.Show(
+                            $"El pallet '{NumeroPallet}' no existe en la base de datos Packing_SJP.",
+                            "Pallet No Encontrado",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
+                    else
+                    {
+                        // Pallet incompleto  
+                        PalletInfo = mensaje;
+                        EstadoValidacion = "INCOMPLETO - Puede eliminar";
+                        ColorValidacion = Brushes.Orange;
+
+                        // NUEVO: Mostrar mensaje de pallet incompleto  
+                        MessageBox.Show(
+                            mensaje + "\n\n" +
+                            "Puede eliminar este pallet usando el botón 'Eliminar Pallet'.",
+                            "Pallet Incompleto",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
                 }
             }
             catch (Exception ex)
@@ -159,7 +206,11 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
 
         private bool CanEliminarPallet(object parameter)
         {
-            return !string.IsNullOrWhiteSpace(NumeroPallet) && Lotes.Count > 0;
+            // Permitir eliminación si:  
+            // 1. Hay lotes cargados (pallet completo), O  
+            // 2. El estado es "INCOMPLETO" (pallet parcial detectado)  
+            return !string.IsNullOrWhiteSpace(NumeroPallet) &&
+                   (Lotes.Count > 0 || EstadoValidacion.Contains("INCOMPLETO"));
         }
 
         private void EliminarPallet(object parameter)
@@ -237,8 +288,12 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         public string NombrePredio { get; set; }
         public string NombreProductor { get; set; }
         public int CantidadCajas { get; set; }
-    }
 
+        // ⭐ AGREGAR ESTAS TRES PROPIEDADES:  
+        public string CalibreCaja { get; set; }
+        public string EmbalajeCaja { get; set; }
+        public string VariedadCaja { get; set; }
+    }
     /// <summary>    
     /// Implementación simple de ICommand para los botones    
     /// </summary>    
