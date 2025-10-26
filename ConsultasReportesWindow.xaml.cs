@@ -28,7 +28,7 @@ namespace AplicacionDespacho
         {
             CargarDatosIniciales();
         }
-
+        //cargar datos
         private void CargarDatosIniciales()
         {
             try
