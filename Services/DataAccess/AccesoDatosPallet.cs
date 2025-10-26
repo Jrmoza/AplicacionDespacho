@@ -35,76 +35,87 @@ namespace AplicacionDespacho.Services.DataAccess
 
         public (InformacionPallet pallet, List<LoteInfo> lotes, string estadoValidacion) ObtenerPalletConLotes(string numeroPallet)
         {
-            // ⭐ LOG: Inicio del método    
+            // ⭐ LOG: Inicio del método  
             _logger.LogInfo("=== INICIO ObtenerPalletConLotes para pallet: {NumeroPallet} ===", numeroPallet);
             Console.WriteLine($"=== INICIO ObtenerPalletConLotes para pallet: {numeroPallet} ===");
 
-            // ⭐ CONSULTA ACTUALIZADA: Incluye fecha y campos por lote individual  
-            string consulta = @"      
-        SELECT                 
-            CAST(GETDATE() AS DATE) AS Fecha,    
-            p.NUMERO_DEL_PALLETS,                
-            p.CANTIDAD_DE_CAJAS AS TotalCajas,                
-            t.DESCRIPCION AS CalibreDescripcion,                
-            e.DESCRIPCION AS EmbalajeDescripcion,                
-            r.Texto_Royalty AS VariedadNombre,                
-            ps.CUARTEL AS CodigoCuartel,                
-            prod.DESCRIPCION AS NombreProductor,                
-            pr.CSG AS CSGPredio,                
-            pr.DESCRIPCION AS NombrePredio,           
-            COUNT(dp.NUMERO_UNICO) AS CajasPorCuartel,    
-            -- ⭐ NUEVOS CAMPOS: Calibre, embalaje y variedad por lote    
-            t_detalle.DESCRIPCION AS CalibreLote,    
-            e_detalle.DESCRIPCION AS EmbalajeDetalle,    
-            r_detalle.Texto_Royalty AS VariedadLote    
-        FROM PALLETIZADOR p              
-        LEFT JOIN TIPO t ON p.CALIBRE = t.CODIGO              
-        LEFT JOIN EMBALAJE e ON p.EMBALAJE = e.CODIGO              
-        LEFT JOIN Royalty r ON e.CODIGO_VARIEDAD = r.Cod_Variedad              
-        INNER JOIN DETALLE_PALLETIZADOR dp ON p.NUMERO_DEL_PALLETS = dp.NUMERO_DEL_PALLETS    
-        -- ⭐ NUEVOS JOINS: Para obtener calibre, embalaje y variedad de cada caja    
-        LEFT JOIN TIPO t_detalle ON dp.CALIBRE = t_detalle.CODIGO    
-        LEFT JOIN EMBALAJE e_detalle ON dp.EMBALAJE = e_detalle.CODIGO    
-        LEFT JOIN Royalty r_detalle ON e_detalle.CODIGO_VARIEDAD = r_detalle.Cod_Variedad    
-        INNER JOIN PROGRAMA_SELECCION ps ON dp.PROGRAMA = ps.CORRELATIVO              
-        LEFT JOIN PRODUCTOR prod ON ps.PRODUCTOR = prod.CODIGO              
-        LEFT JOIN PREDIO pr ON ps.PREDIO = pr.CODIGO_PREDIO AND ps.PRODUCTOR = pr.CODIGO_PRODUCTOR              
-        WHERE p.NUMERO_DEL_PALLETS = @NumeroPallet              
-        GROUP BY p.NUMERO_DEL_PALLETS, p.CANTIDAD_DE_CAJAS, t.DESCRIPCION, e.DESCRIPCION,         
-                 r.Texto_Royalty, ps.CUARTEL, prod.DESCRIPCION, pr.CSG, pr.DESCRIPCION,    
-                 t_detalle.DESCRIPCION, e_detalle.DESCRIPCION, r_detalle.Texto_Royalty    
-        ORDER BY ps.CUARTEL";
+            string consulta = @"    
+        SELECT                           
+            p.NUMERO_DEL_PALLETS,                          
+            p.CANTIDAD_DE_CAJAS AS TotalCajas,                          
+            -- Calibre, embalaje y variedad del PALLET (global)            
+            t_pallet.DESCRIPCION AS CalibreDescripcion,                          
+            e_pallet.DESCRIPCION AS EmbalajeDescripcion,                          
+            r_pallet.Texto_Royalty AS VariedadNombre,                          
+            -- Nombre real del cuartel desde CUARTEL1 (RUTA DIRECTA)      
+            ISNULL(c1.CODIGO_CUARTEL, CAST(ps.CUARTEL AS NVARCHAR(50))) AS CodigoCuartel,      
+            prod.DESCRIPCION AS NombreProductor,                          
+            pr.CSG AS CSGPredio,                          
+            pr.DESCRIPCION AS NombrePredio,                          
+            -- Calibre, embalaje y variedad por LOTE INDIVIDUAL        
+            t_detalle.DESCRIPCION AS CalibreLote,                          
+            e_detalle.DESCRIPCION AS EmbalajeLote,                          
+            r_detalle.Texto_Royalty AS VariedadLote,                          
+            COUNT(dp.NUMERO_UNICO) AS CajasPorCombinacion                          
+        FROM PALLETIZADOR p                          
+        LEFT JOIN TIPO t_pallet ON p.CALIBRE = t_pallet.CODIGO                          
+        LEFT JOIN EMBALAJE e_pallet ON p.EMBALAJE = e_pallet.CODIGO                          
+        LEFT JOIN Royalty r_pallet ON e_pallet.CODIGO_VARIEDAD = r_pallet.Cod_Variedad                          
+        INNER JOIN DETALLE_PALLETIZADOR dp ON p.NUMERO_DEL_PALLETS = dp.NUMERO_DEL_PALLETS                          
+        INNER JOIN PROGRAMA_SELECCION ps ON dp.PROGRAMA = ps.CORRELATIVO                          
+        LEFT JOIN PRODUCTOR prod ON ps.PRODUCTOR = prod.CODIGO                          
+        LEFT JOIN PREDIO pr ON ps.PREDIO = pr.CODIGO_PREDIO AND ps.PRODUCTOR = pr.CODIGO_PRODUCTOR            
+        -- JOIN DIRECTO desde PROGRAMA_SELECCION a CUARTEL1      
+        LEFT JOIN CUARTEL1 c1 ON CAST(ps.CUARTEL AS NVARCHAR(50)) = CAST(c1.COD_CUARTEL AS NVARCHAR(50))      
+        -- JOINs para obtener calibre, embalaje y variedad por lote individual        
+        LEFT JOIN TIPO t_detalle ON ps.CALIBRE = t_detalle.CODIGO                          
+        LEFT JOIN EMBALAJE e_detalle ON ps.EMBALAJE = e_detalle.CODIGO                          
+        LEFT JOIN Royalty r_detalle ON e_detalle.CODIGO_VARIEDAD = r_detalle.Cod_Variedad                          
+        WHERE p.NUMERO_DEL_PALLETS = @NumeroPallet                          
+        GROUP BY p.NUMERO_DEL_PALLETS, p.CANTIDAD_DE_CAJAS,                           
+                 t_pallet.DESCRIPCION, e_pallet.DESCRIPCION, r_pallet.Texto_Royalty,                           
+                 c1.CODIGO_CUARTEL, ps.CUARTEL, prod.DESCRIPCION, pr.CSG, pr.DESCRIPCION,                           
+                 t_detalle.DESCRIPCION, e_detalle.DESCRIPCION, r_detalle.Texto_Royalty                          
+        ORDER BY c1.CODIGO_CUARTEL, t_detalle.DESCRIPCION";
 
-            string consultaValidacion = @"      
-        SELECT p.NUMERO_DEL_PALLETS, p.CANTIDAD_DE_CAJAS AS TotalDeclarado,        
-               COUNT(dp.NUMERO_UNICO) AS TotalContado,        
-               CASE WHEN p.CANTIDAD_DE_CAJAS = COUNT(dp.NUMERO_UNICO) THEN 'OK' ELSE 'DISCREPANCIA' END AS EstadoValidacion        
-        FROM PALLETIZADOR p        
-        INNER JOIN DETALLE_PALLETIZADOR dp ON p.NUMERO_DEL_PALLETS = dp.NUMERO_DEL_PALLETS        
-        WHERE p.NUMERO_DEL_PALLETS = @NumeroPallet        
+            // ⭐ LOG: Mostrar consulta SQL  
+            _logger.LogInfo("Consulta SQL a ejecutar:\n{Consulta}", consulta);
+            Console.WriteLine($"Consulta SQL a ejecutar:\n{consulta}");
+
+            string consultaValidacion = @"    
+        SELECT p.NUMERO_DEL_PALLETS, p.CANTIDAD_DE_CAJAS AS TotalDeclarado,    
+               COUNT(dp.NUMERO_UNICO) AS TotalContado,    
+               CASE WHEN p.CANTIDAD_DE_CAJAS = COUNT(dp.NUMERO_UNICO) THEN 'OK' ELSE 'DISCREPANCIA' END AS EstadoValidacion    
+        FROM PALLETIZADOR p    
+        INNER JOIN DETALLE_PALLETIZADOR dp ON p.NUMERO_DEL_PALLETS = dp.NUMERO_DEL_PALLETS    
+        WHERE p.NUMERO_DEL_PALLETS = @NumeroPallet    
         GROUP BY p.NUMERO_DEL_PALLETS, p.CANTIDAD_DE_CAJAS";
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
                 conexion.Open();
-                _logger.LogInfo("Conexión SQL abierta exitosamente");
-                Console.WriteLine("Conexión SQL abierta exitosamente");
+                _logger.LogInfo("✓ Conexión SQL abierta exitosamente");
+                Console.WriteLine("✓ Conexión SQL abierta exitosamente");
 
                 InformacionPallet pallet = null;
                 List<LoteInfo> lotes = new List<LoteInfo>();
                 string estadoValidacion = "";
 
-                // Ejecutar consulta principal      
+                // Ejecutar consulta principal  
                 using (SqlCommand comando = new SqlCommand(consulta, conexion))
                 {
                     comando.Parameters.AddWithValue("@NumeroPallet", numeroPallet.Trim());
+
+                    // ⭐ LOG: Confirmar parámetro  
+                    _logger.LogInfo("Parámetro @NumeroPallet = '{Value}'", numeroPallet.Trim());
+                    Console.WriteLine($"Parámetro @NumeroPallet = '{numeroPallet.Trim()}'");
 
                     _logger.LogInfo("Ejecutando consulta principal...");
                     Console.WriteLine("Ejecutando consulta principal...");
 
                     using (SqlDataReader reader = comando.ExecuteReader())
                     {
-                        // ⭐ LOG: Mostrar TODAS las columnas disponibles    
+                        // ⭐ LOG: Mostrar TODAS las columnas disponibles  
                         _logger.LogInfo("=== COLUMNAS DISPONIBLES EN SqlDataReader ===");
                         Console.WriteLine("=== COLUMNAS DISPONIBLES EN SqlDataReader ===");
 
@@ -129,7 +140,7 @@ namespace AplicacionDespacho.Services.DataAccess
                             {
                                 try
                                 {
-                                    // ⭐ LOG: Intentar leer cada campo del pallet    
+                                    // ⭐ LOG: Leer información del pallet  
                                     _logger.LogInfo("Leyendo información del pallet...");
                                     Console.WriteLine("Leyendo información del pallet...");
 
@@ -177,14 +188,9 @@ namespace AplicacionDespacho.Services.DataAccess
 
                             try
                             {
-                                // ⭐ LOG: Intentar leer cada campo del lote    
+                                // ⭐ LOG: Leer información del lote  
                                 _logger.LogInfo("Leyendo información del lote...");
                                 Console.WriteLine("Leyendo información del lote...");
-
-                                // ⭐ CAMBIO CRÍTICO: Leer la fecha  
-                                DateTime fecha = reader.GetDateTime(reader.GetOrdinal("Fecha"));
-                                _logger.LogInfo("✓ Fecha: {Value}", fecha);
-                                Console.WriteLine($"✓ Fecha: {fecha}");
 
                                 string codigoCuartel = reader["CodigoCuartel"].ToString();
                                 _logger.LogInfo("✓ CodigoCuartel: {Value}", codigoCuartel);
@@ -202,35 +208,44 @@ namespace AplicacionDespacho.Services.DataAccess
                                 _logger.LogInfo("✓ NombreProductor: {Value}", nombreProductor);
                                 Console.WriteLine($"✓ NombreProductor: {nombreProductor}");
 
-                                // ⭐ CAMBIO CRÍTICO: Leer calibre, embalaje y variedad por lote  
+                                // ⭐ NUEVOS CAMPOS - Calibre, embalaje y variedad por lote individual  
                                 string calibreLote = reader["CalibreLote"].ToString();
                                 _logger.LogInfo("✓ CalibreLote: {Value}", calibreLote);
                                 Console.WriteLine($"✓ CalibreLote: {calibreLote}");
 
-                                string embalajeDetalle = reader["EmbalajeDetalle"].ToString();
-                                _logger.LogInfo("✓ EmbalajeDetalle: {Value}", embalajeDetalle);
-                                Console.WriteLine($"✓ EmbalajeDetalle: {embalajeDetalle}");
+                                string embalajeLote = reader["EmbalajeLote"].ToString();
+                                _logger.LogInfo("✓ EmbalajeLote: {Value}", embalajeLote);
+                                Console.WriteLine($"✓ EmbalajeLote: {embalajeLote}");
 
                                 string variedadLote = reader["VariedadLote"].ToString();
                                 _logger.LogInfo("✓ VariedadLote: {Value}", variedadLote);
                                 Console.WriteLine($"✓ VariedadLote: {variedadLote}");
 
-                                int cantidadCajas = Convert.ToInt32(reader["CajasPorCuartel"]);
-                                _logger.LogInfo("✓ CajasPorCuartel: {Value}", cantidadCajas);
-                                Console.WriteLine($"✓ CajasPorCuartel: {cantidadCajas}");
+                                int cajasPorCombinacion = Convert.ToInt32(reader["CajasPorCombinacion"]);
+                                _logger.LogInfo("✓ CajasPorCombinacion: {Value}", cajasPorCombinacion);
+                                Console.WriteLine($"✓ CajasPorCombinacion: {cajasPorCombinacion}");
 
-                                // ⭐ CREAR LoteInfo con TODOS los campos  
+                                // Agregar lote con TODOS los campos  
                                 lotes.Add(new LoteInfo
                                 {
-                                    Fecha = fecha,
+                                    // Datos globales del pallet (se repiten en cada fila)  
+                                    NumeroPallet = reader["NUMERO_DEL_PALLETS"].ToString(),
+                                    TotalCajas = Convert.ToInt32(reader["TotalCajas"]),
+                                    CalibreDescripcion = reader["CalibreDescripcion"].ToString(),
+                                    EmbalajeDescripcion = reader["EmbalajeDescripcion"].ToString(),
+                                    VariedadNombre = reader["VariedadNombre"].ToString(),
+
+                                    // Datos por cuartel  
                                     CodigoCuartel = codigoCuartel,
                                     CSGPredio = csgPredio,
                                     NombrePredio = nombrePredio,
                                     NombreProductor = nombreProductor,
-                                    EmbalajeCaja = embalajeDetalle,      // ✅ Usa EmbalajeDetalle  
-                                    VariedadCaja = variedadLote,         // ✅ Usa VariedadLote  
-                                    CalibreCaja = calibreLote,           // ✅ Usa CalibreLote  
-                                    CantidadCajas = cantidadCajas
+
+                                    // ⭐ NUEVOS CAMPOS - Datos por lote individual (calibre/embalaje/variedad de cada caja)  
+                                    CalibreLote = calibreLote,
+                                    EmbalajeLote = embalajeLote,
+                                    VariedadLote = variedadLote,
+                                    CantidadCajas = cajasPorCombinacion
                                 });
 
                                 _logger.LogInfo("✓ LoteInfo agregado exitosamente");
@@ -250,7 +265,7 @@ namespace AplicacionDespacho.Services.DataAccess
                     }
                 }
 
-                // Ejecutar consulta de validación      
+                // Ejecutar consulta de validación    
                 if (pallet != null)
                 {
                     _logger.LogInfo("Ejecutando consulta de validación...");
@@ -260,16 +275,40 @@ namespace AplicacionDespacho.Services.DataAccess
                     {
                         comandoValidacion.Parameters.AddWithValue("@NumeroPallet", numeroPallet.Trim());
 
-                        using (SqlDataReader reader = comandoValidacion.ExecuteReader())
+                        _logger.LogInfo("Parámetro @NumeroPallet para validación = '{Value}'", numeroPallet.Trim());
+                        Console.WriteLine($"Parámetro @NumeroPallet para validación = '{numeroPallet.Trim()}'");
+
+                        using (SqlDataReader readerValidacion = comandoValidacion.ExecuteReader())
                         {
-                            if (reader.Read())
+                            if (readerValidacion.Read())
                             {
-                                estadoValidacion = reader["EstadoValidacion"].ToString();
-                                _logger.LogInfo("✓ EstadoValidacion: {Value}", estadoValidacion);
-                                Console.WriteLine($"✓ EstadoValidacion: {estadoValidacion}");
+                                estadoValidacion = readerValidacion["EstadoValidacion"].ToString();
+                                int totalDeclarado = Convert.ToInt32(readerValidacion["TotalDeclarado"]);
+                                int totalContado = Convert.ToInt32(readerValidacion["TotalContado"]);
+
+                                _logger.LogInfo("✓ Validación completada:");
+                                _logger.LogInfo("  - Total Declarado: {TotalDeclarado}", totalDeclarado);
+                                _logger.LogInfo("  - Total Contado: {TotalContado}", totalContado);
+                                _logger.LogInfo("  - Estado: {EstadoValidacion}", estadoValidacion);
+
+                                Console.WriteLine("✓ Validación completada:");
+                                Console.WriteLine($"  - Total Declarado: {totalDeclarado}");
+                                Console.WriteLine($"  - Total Contado: {totalContado}");
+                                Console.WriteLine($"  - Estado: {estadoValidacion}");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("⚠️ No se pudo ejecutar la consulta de validación");
+                                Console.WriteLine("⚠️ No se pudo ejecutar la consulta de validación");
+                                estadoValidacion = "ERROR";
                             }
                         }
                     }
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ Pallet es null, no se ejecuta validación");
+                    Console.WriteLine("⚠️ Pallet es null, no se ejecuta validación");
                 }
 
                 _logger.LogInfo("=== FIN ObtenerPalletConLotes - Pallet: {Found}, Lotes: {Count} ===",
@@ -397,40 +436,57 @@ namespace AplicacionDespacho.Services.DataAccess
         }
         public (bool encontrado, List<string> tablasConRegistros) VerificarExistenciaPallet(string numeroPallet)
         {
+            _logger.LogInfo("Verificando existencia de pallet: {NumeroPallet}", numeroPallet);
+
             var tablasConRegistros = new List<string>();
+            string numeroPalletLimpio = numeroPallet.Trim();
 
             using (SqlConnection conexion = new SqlConnection(_cadenaConexion))
             {
                 conexion.Open();
 
-                // Verificar cada tabla  
+                // Verificar en cada tabla  
                 string[] tablas = new string[]
                 {
-            "SELECT COUNT(*) FROM PALLETIZADOR WHERE NUMERO_DEL_PALLETS = @NumeroPallet",
-            "SELECT COUNT(*) FROM DETALLE_PALLETIZADOR WHERE NUMERO_DEL_PALLETS = @NumeroPallet",
-            "SELECT COUNT(*) FROM Palet_Listos WHERE palet = @NumeroPallet",
-            "SELECT COUNT(*) FROM Cabecera_Palet WHERE n_pallet = @NumeroPallet",
-            "SELECT COUNT(*) FROM Detalles_Lecturas WHERE n_palet = @NumeroPallet"
+            "PALLETIZADOR",
+            "DETALLE_PALLETIZADOR",
+            "Palet_Listos",
+            "Cabecera_Palet",
+            "Detalles_Lecturas"
                 };
 
-                string[] nombresTablas = { "PALLETIZADOR", "DETALLE_PALLETIZADOR", "Palet_Listos", "Cabecera_Palet", "Detalles_Lecturas" };
+                string[] camposPallet = new string[]
+                {
+            "NUMERO_DEL_PALLETS",
+            "NUMERO_DEL_PALLETS",
+            "palet",
+            "n_pallet",
+            "n_palet"
+                };
 
                 for (int i = 0; i < tablas.Length; i++)
                 {
-                    using (SqlCommand comando = new SqlCommand(tablas[i], conexion))
+                    string consulta = $"SELECT COUNT(*) FROM {tablas[i]} WHERE {camposPallet[i]} = @NumeroPallet";
+
+                    using (SqlCommand comando = new SqlCommand(consulta, conexion))
                     {
-                        comando.Parameters.AddWithValue("@NumeroPallet", numeroPallet.Trim());
+                        comando.Parameters.AddWithValue("@NumeroPallet", numeroPalletLimpio);
                         int count = (int)comando.ExecuteScalar();
 
                         if (count > 0)
                         {
-                            tablasConRegistros.Add(nombresTablas[i]);
+                            tablasConRegistros.Add(tablas[i]);
+                            _logger.LogDebug("Pallet encontrado en tabla: {Tabla}", tablas[i]);
                         }
                     }
                 }
             }
 
-            return (tablasConRegistros.Count > 0, tablasConRegistros);
+            bool encontrado = tablasConRegistros.Count > 0;
+            _logger.LogInfo("Pallet {NumeroPallet} encontrado: {Encontrado}, Tablas: {Count}",
+                numeroPalletLimpio, encontrado, tablasConRegistros.Count);
+
+            return (encontrado, tablasConRegistros);
         }
         public InformacionPallet ObtenerDatosPallet(string numeroPallet)
         {

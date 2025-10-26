@@ -100,7 +100,39 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.Views
             throw new NotImplementedException();
         }
     }
+    public class CalibreDiscrepancyConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is LoteInfo lote)
+            {
+                // ⭐ Verificar si hay discrepancia en CUALQUIERA de los tres campos  
+                bool calibreDifiere = !string.Equals(
+                    lote.CalibreLote?.Trim(),
+                    lote.CalibreMayoritario?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
 
+                bool embalajeDifiere = !string.Equals(
+                    lote.EmbalajeLote?.Trim(),
+                    lote.EmbalajeMayoritario?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+
+                bool variedadDifiere = !string.Equals(
+                    lote.VariedadLote?.Trim(),
+                    lote.VariedadMayoritaria?.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+
+                // Retornar true si HAY discrepancia en cualquier campo  
+                return calibreDifiere || embalajeDifiere || variedadDifiere;
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
     // Convertidor para mostrar elemento cuando el valor es null  
     public class NullToVisibilityConverter : IValueConverter
     {
@@ -114,4 +146,5 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.Views
             throw new NotImplementedException();
         }
     }
+
 }
