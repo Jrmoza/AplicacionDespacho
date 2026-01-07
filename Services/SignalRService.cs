@@ -220,6 +220,8 @@ namespace AplicacionDespacho.Services
             }
         }
 
+
+
         // NUEVO: Propiedad para obtener la URL actual      
         public string CurrentHubUrl => _hubUrl;
 
@@ -277,6 +279,40 @@ namespace AplicacionDespacho.Services
                 }
             }
         }
+        /// <summary>  
+        /// Suscribe al evento de solicitud de eliminación de pallet desde móvil  
+        /// </summary>  
+        public void OnPalletDeletionRequested(Func<string, string, Task> handler)
+        {
+            _connection.On<string, string>("OnPalletDeletionRequested", handler);
+        }
+
+        /// <summary>  
+        /// Envía información de pallet al móvil testeador  
+        /// </summary>  
+        public async Task SendPalletInfoToMobileTesteadorAsync(string palletDataJson, string deviceId, bool success, string errorMessage = "")
+        {
+            await _connection.InvokeAsync("SendPalletInfoToMobileTesteador", palletDataJson, deviceId, success, errorMessage);
+        }
+
+        /// <summary>  
+        /// Envía resultado de eliminación al móvil  
+        /// </summary>  
+        public async Task SendDeletionResultToMobileAsync(string palletNumber, string deviceId, bool success, string message)
+        {
+            await _connection.InvokeAsync("SendDeletionResultToMobile", palletNumber, deviceId, success, message);
+        }
+
+
+        /// /////////////////////////////////////////////////////
+
+        public void OnPalletInfoRequested(Func<string, string, Task> handler)
+        {
+            _connection.On<string, string>("OnPalletInfoRequested", handler);
+        }
+
+
+
 
         // NUEVO: Métodos de manejo de eventos de conexión        
         private async Task OnConnectionClosed(Exception exception)

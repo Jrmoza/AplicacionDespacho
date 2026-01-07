@@ -48,13 +48,13 @@ namespace AplicacionDespacho.Modules.Trazabilidad
 
         protected override Window CreateMainWindow(string deviceId)
         {
-            // Si no se especificó perfil, usar el del constructor  
             string profileToUse = _selectedProfile;
 
             switch (profileToUse)
             {
                 case "Testeador":
-                    return new TesteadorWindow();
+                    // ⭐ MODIFICADO: Pasar SignalRService al constructor  
+                    return new TesteadorWindow(SignalRService);
 
                 case "Registrador":
                     return new RegistradorWindow();

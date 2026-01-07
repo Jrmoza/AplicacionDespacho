@@ -8,6 +8,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using AplicacionDespacho.Models;
 using AplicacionDespacho.Services.DataAccess;
+using System.Threading.Tasks; // ⭐ NUEVO
+using AplicacionDespacho.Services; // ⭐ NUEVO
+
 
 namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
 {
@@ -18,6 +21,8 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
     public class TesteadorViewModel : INotifyPropertyChanged
     {
         private readonly AccesoDatosPallet _accesoDatosPallet;
+        private readonly SignalRService _signalRService;
+
 
         // Propiedades para búsqueda    
         private string _numeroPallet;
@@ -82,9 +87,14 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
         public ICommand BuscarPalletCommand { get; }
         public ICommand EliminarPalletCommand { get; }
 
-        public TesteadorViewModel()
+        // ⭐ NUEVO: Propiedad pública para que TesteadorWindow pueda acceder  
+        public SignalRService SignalRService => _signalRService;
+
+
+        public TesteadorViewModel(SignalRService signalRService = null)
         {
             _accesoDatosPallet = new AccesoDatosPallet();
+            _signalRService = signalRService; // ⭐ NUEVO  
             Lotes = new ObservableCollection<LoteInfo>();
 
             BuscarPalletCommand = new RelayCommand(BuscarPallet, CanBuscarPallet);
@@ -93,6 +103,12 @@ namespace AplicacionDespacho.Modules.Trazabilidad.Profiles.Testeador.ViewModels
             PalletInfo = "Ingrese un número de pallet para consultar";
             EstadoValidacion = "";
             ColorValidacion = Brushes.Gray;
+
+            // ⭐ NUEVO: Iniciar conexión SignalR igual que ViewModelPrincipal  
+            if (_signalRService != null)
+            {
+                _ = Task.Run(async () => await _signalRService.StartConnectionAsync());
+            }
         }
 
         private bool CanBuscarPallet(object parameter)
